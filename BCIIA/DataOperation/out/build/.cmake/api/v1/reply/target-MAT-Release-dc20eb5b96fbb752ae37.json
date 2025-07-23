@@ -1,0 +1,204 @@
+{
+	"archive" : 
+	{
+		"commandFragments" : 
+		[
+			{
+				"fragment" : "/machine:x64",
+				"role" : "flags"
+			}
+		]
+	},
+	"artifacts" : 
+	[
+		{
+			"path" : "FileStorage/MAT/MAT.lib"
+		}
+	],
+	"backtrace" : 1,
+	"backtraceGraph" : 
+	{
+		"commands" : 
+		[
+			"add_library",
+			"install",
+			"target_link_libraries",
+			"target_include_directories"
+		],
+		"files" : 
+		[
+			"FileStorage/MAT/CMakeLists.txt"
+		],
+		"nodes" : 
+		[
+			{
+				"file" : 0
+			},
+			{
+				"command" : 0,
+				"file" : 0,
+				"line" : 46,
+				"parent" : 0
+			},
+			{
+				"command" : 1,
+				"file" : 0,
+				"line" : 51,
+				"parent" : 0
+			},
+			{
+				"command" : 2,
+				"file" : 0,
+				"line" : 49,
+				"parent" : 0
+			},
+			{
+				"command" : 3,
+				"file" : 0,
+				"line" : 50,
+				"parent" : 0
+			}
+		]
+	},
+	"compileGroups" : 
+	[
+		{
+			"compileCommandFragments" : 
+			[
+				{
+					"fragment" : "-DQT_QML_DEBUG /MD /O2 /Ob2 /DNDEBUG"
+				}
+			],
+			"defines" : 
+			[
+				{
+					"backtrace" : 3,
+					"define" : "QT_CORE_LIB"
+				},
+				{
+					"backtrace" : 3,
+					"define" : "QT_NO_DEBUG"
+				}
+			],
+			"includes" : 
+			[
+				{
+					"path" : "D:/Qt_Projects/fatigue_new/BCIIA/DataOperation/out/build/FileStorage/MAT"
+				},
+				{
+					"path" : "D:/Qt_Projects/fatigue_new/BCIIA/DataOperation/FileStorage/MAT"
+				},
+				{
+					"backtrace" : 0,
+					"path" : "D:/Qt_Projects/fatigue_new/BCIIA/DataOperation/out/build/FileStorage/MAT/MAT_autogen/include"
+				},
+				{
+					"backtrace" : 4,
+					"path" : "D:/Qt_Projects/fatigue_new/BCIIA/DataOperation/FileStorage/MAT/src"
+				},
+				{
+					"backtrace" : 4,
+					"path" : "D:/Qt_Projects/fatigue_new/BCIIA/DataOperation/FileStorage/MAT/matio/x64/release/include"
+				},
+				{
+					"backtrace" : 3,
+					"isSystem" : true,
+					"path" : "D:/ProgramFile/Qt/5.14.2/msvc2017_64/include"
+				},
+				{
+					"backtrace" : 3,
+					"isSystem" : true,
+					"path" : "D:/ProgramFile/Qt/5.14.2/msvc2017_64/include/QtCore"
+				},
+				{
+					"backtrace" : 3,
+					"isSystem" : true,
+					"path" : "D:/ProgramFile/Qt/5.14.2/msvc2017_64/./mkspecs/win32-msvc"
+				}
+			],
+			"language" : "CXX",
+			"languageStandard" : 
+			{
+				"backtraces" : 
+				[
+					3
+				],
+				"standard" : "11"
+			},
+			"sourceIndexes" : 
+			[
+				0,
+				1
+			]
+		}
+	],
+	"dependencies" : 
+	[
+		{
+			"backtrace" : 0,
+			"id" : "MAT_autogen::@39aea3536c90e0b0c1b8"
+		}
+	],
+	"id" : "MAT::@39aea3536c90e0b0c1b8",
+	"install" : 
+	{
+		"destinations" : 
+		[
+			{
+				"backtrace" : 2,
+				"path" : "lib"
+			}
+		],
+		"prefix" : 
+		{
+			"path" : "C:/Program Files (x86)/DataOperation"
+		}
+	},
+	"name" : "MAT",
+	"nameOnDisk" : "MAT.lib",
+	"paths" : 
+	{
+		"build" : "FileStorage/MAT",
+		"source" : "FileStorage/MAT"
+	},
+	"sourceGroups" : 
+	[
+		{
+			"name" : "Source Files",
+			"sourceIndexes" : 
+			[
+				0,
+				1
+			]
+		},
+		{
+			"name" : "Header Files",
+			"sourceIndexes" : 
+			[
+				2
+			]
+		}
+	],
+	"sources" : 
+	[
+		{
+			"backtrace" : 0,
+			"compileGroupIndex" : 0,
+			"isGenerated" : true,
+			"path" : "out/build/FileStorage/MAT/MAT_autogen/mocs_compilation.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 1,
+			"compileGroupIndex" : 0,
+			"path" : "FileStorage/MAT/src/mat.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 1,
+			"path" : "FileStorage/MAT/src/mat.h",
+			"sourceGroupIndex" : 1
+		}
+	],
+	"type" : "STATIC_LIBRARY"
+}

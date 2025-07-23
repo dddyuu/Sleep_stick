@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+	<class>MainWindow</class>
+	<widget class="QMainWindow" name="MainWindow">
+		<property name="geometry">
+			<rect>
+				<x>0</x>
+				<y>0</y>
+				<width>680</width>
+				<height>520</height>
+			</rect>
+		</property>
+		<property name="windowTitle">
+			<string>SelfAmplifier 蓝牙测试</string>
+		</property>
+		<widget class="QWidget" name="centralwidget">
+			<layout class="QVBoxLayout" name="verticalLayout_main">
+				<item>
+					<layout class="QHBoxLayout" name="horizontalLayout_top">
+						<item>
+							<widget class="QListWidget" name="listDevices">
+								<property name="minimumSize">
+									<size>
+										<width>250</width>
+										<height>0</height>
+									</size>
+								</property>
+							</widget>
+						</item>
+						<item>
+							<layout class="QVBoxLayout" name="verticalLayout_controls">
+								<item>
+									<widget class="QPushButton" name="btnScan">
+										<property name="text">
+											<string>扫描设备</string>
+										</property>
+									</widget>
+								</item>
+								<item>
+									<widget class="QPushButton" name="btnConnect">
+										<property name="text">
+											<string>连接设备</string>
+										</property>
+									</widget>
+								</item>
+								<item>
+									<widget class="QPushButton" name="btnDisconnect">
+										<property name="text">
+											<string>断开连接</string>
+										</property>
+									</widget>
+								</item>
+								<item>
+									<widget class="QPushButton" name="btnStartRecv">
+										<property name="text">
+											<string>开始接收</string>
+										</property>
+									</widget>
+								</item>
+								<item>
+									<widget class="QPushButton" name="btnStopRecv">
+										<property name="text">
+											<string>停止接收</string>
+										</property>
+									</widget>
+								</item>
+								<item>
+									<widget class="QPushButton" name="btnSendTestCmd">
+										<property name="text">
+											<string>发送测试命令</string>
+										</property>
+									</widget>
+								</item>
+								<item>
+									<widget class="QPushButton" name="btnStartTcpServer">
+										<property name="text">
+											<string>启动TCP服务器</string>
+										</property>
+									</widget>
+								</item>
+								<item>
+									<widget class="QPushButton" name="btnStopTcpServer">
+										<property name="text">
+											<string>停止TCP服务器</string>
+										</property>
+									</widget>
+								</item>
+							</layout>
+						</item>
+					</layout>
+				</item>
+				<item>
+					<widget class="QTextEdit" name="textLog">
+						<property name="readOnly">
+							<bool>true</bool>
+						</property>
+						<property name="placeholderText">
+							<string>日志输出区</string>
+						</property>
+					</widget>
+				</item>
+			</layout>
+		</widget>
+		<widget class="QStatusBar" name="statusbar"/>
+	</widget>
+	<resources/>
+	<connections/>
+</ui>

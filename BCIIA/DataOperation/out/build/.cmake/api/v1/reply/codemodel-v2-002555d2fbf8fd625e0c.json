@@ -1,0 +1,480 @@
+{
+	"configurations" : 
+	[
+		{
+			"directories" : 
+			[
+				{
+					"build" : ".",
+					"childIndexes" : 
+					[
+						1,
+						5
+					],
+					"hasInstallRule" : true,
+					"jsonFile" : "directory-.-Release-d0094a50bb2071803777.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.5"
+					},
+					"projectIndex" : 0,
+					"source" : ".",
+					"targetIndexes" : 
+					[
+						4,
+						5,
+						6,
+						7
+					]
+				},
+				{
+					"build" : "Amplifier",
+					"childIndexes" : 
+					[
+						2,
+						3
+					],
+					"jsonFile" : "directory-Amplifier-Release-5ee78ec1dfb81758fb09.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.5"
+					},
+					"parentIndex" : 0,
+					"projectIndex" : 1,
+					"source" : "Amplifier",
+					"targetIndexes" : 
+					[
+						0,
+						1
+					]
+				},
+				{
+					"build" : "Amplifier/test",
+					"jsonFile" : "directory-Amplifier.test-Release-ca5f3e5c05871dc0bbac.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.5"
+					},
+					"parentIndex" : 1,
+					"projectIndex" : 2,
+					"source" : "Amplifier/test",
+					"targetIndexes" : 
+					[
+						2,
+						3
+					]
+				},
+				{
+					"build" : "Amplifier/filter",
+					"childIndexes" : 
+					[
+						4
+					],
+					"jsonFile" : "directory-Amplifier.filter-Release-77b1a8ecc3cdf9e15686.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.5"
+					},
+					"parentIndex" : 1,
+					"projectIndex" : 3,
+					"source" : "Amplifier/filter",
+					"targetIndexes" : 
+					[
+						14,
+						15
+					]
+				},
+				{
+					"build" : "Amplifier/filter/test",
+					"jsonFile" : "directory-Amplifier.filter.test-Release-87b384789b90d63c517e.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.10.0"
+					},
+					"parentIndex" : 3,
+					"projectIndex" : 4,
+					"source" : "Amplifier/filter/test",
+					"targetIndexes" : 
+					[
+						16,
+						17
+					]
+				},
+				{
+					"build" : "FileStorage",
+					"childIndexes" : 
+					[
+						6,
+						7
+					],
+					"hasInstallRule" : true,
+					"jsonFile" : "directory-FileStorage-Release-35e9c966a3992c800abf.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.5"
+					},
+					"parentIndex" : 0,
+					"projectIndex" : 5,
+					"source" : "FileStorage",
+					"targetIndexes" : 
+					[
+						8,
+						9
+					]
+				},
+				{
+					"build" : "FileStorage/test",
+					"jsonFile" : "directory-FileStorage.test-Release-c99d0fb68ac066603ca3.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.5"
+					},
+					"parentIndex" : 5,
+					"projectIndex" : 6,
+					"source" : "FileStorage/test",
+					"targetIndexes" : 
+					[
+						10,
+						11
+					]
+				},
+				{
+					"build" : "FileStorage/MAT",
+					"childIndexes" : 
+					[
+						8
+					],
+					"hasInstallRule" : true,
+					"jsonFile" : "directory-FileStorage.MAT-Release-2c465a198bdf2ac171d1.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.5"
+					},
+					"parentIndex" : 5,
+					"projectIndex" : 7,
+					"source" : "FileStorage/MAT",
+					"targetIndexes" : 
+					[
+						12,
+						13
+					]
+				},
+				{
+					"build" : "FileStorage/MAT/test",
+					"jsonFile" : "directory-FileStorage.MAT.test-Release-6f8dd2c32c8315a23f84.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.10.0"
+					},
+					"parentIndex" : 7,
+					"projectIndex" : 8,
+					"source" : "FileStorage/MAT/test",
+					"targetIndexes" : 
+					[
+						18,
+						19
+					]
+				}
+			],
+			"name" : "Release",
+			"projects" : 
+			[
+				{
+					"childIndexes" : 
+					[
+						1,
+						5
+					],
+					"directoryIndexes" : 
+					[
+						0
+					],
+					"name" : "DataOperation",
+					"targetIndexes" : 
+					[
+						4,
+						5,
+						6,
+						7
+					]
+				},
+				{
+					"childIndexes" : 
+					[
+						2,
+						3
+					],
+					"directoryIndexes" : 
+					[
+						1
+					],
+					"name" : "Amplifier",
+					"parentIndex" : 0,
+					"targetIndexes" : 
+					[
+						0,
+						1
+					]
+				},
+				{
+					"directoryIndexes" : 
+					[
+						2
+					],
+					"name" : "Amplifier_test",
+					"parentIndex" : 1,
+					"targetIndexes" : 
+					[
+						2,
+						3
+					]
+				},
+				{
+					"childIndexes" : 
+					[
+						4
+					],
+					"directoryIndexes" : 
+					[
+						3
+					],
+					"name" : "filter",
+					"parentIndex" : 1,
+					"targetIndexes" : 
+					[
+						14,
+						15
+					]
+				},
+				{
+					"directoryIndexes" : 
+					[
+						4
+					],
+					"name" : "filter_test",
+					"parentIndex" : 3,
+					"targetIndexes" : 
+					[
+						16,
+						17
+					]
+				},
+				{
+					"childIndexes" : 
+					[
+						6,
+						7
+					],
+					"directoryIndexes" : 
+					[
+						5
+					],
+					"name" : "FileStorage",
+					"parentIndex" : 0,
+					"targetIndexes" : 
+					[
+						8,
+						9
+					]
+				},
+				{
+					"directoryIndexes" : 
+					[
+						6
+					],
+					"name" : "FileStorage_lib",
+					"parentIndex" : 5,
+					"targetIndexes" : 
+					[
+						10,
+						11
+					]
+				},
+				{
+					"childIndexes" : 
+					[
+						8
+					],
+					"directoryIndexes" : 
+					[
+						7
+					],
+					"name" : "MAT",
+					"parentIndex" : 5,
+					"targetIndexes" : 
+					[
+						12,
+						13
+					]
+				},
+				{
+					"directoryIndexes" : 
+					[
+						8
+					],
+					"name" : "mat_test",
+					"parentIndex" : 7,
+					"targetIndexes" : 
+					[
+						18,
+						19
+					]
+				}
+			],
+			"targets" : 
+			[
+				{
+					"directoryIndex" : 1,
+					"id" : "Amplifier::@ce71db21ab7640727f27",
+					"jsonFile" : "target-Amplifier-Release-db48306ba056793b1401.json",
+					"name" : "Amplifier",
+					"projectIndex" : 1
+				},
+				{
+					"directoryIndex" : 1,
+					"id" : "Amplifier_autogen::@ce71db21ab7640727f27",
+					"jsonFile" : "target-Amplifier_autogen-Release-967b710545fa832f881f.json",
+					"name" : "Amplifier_autogen",
+					"projectIndex" : 1
+				},
+				{
+					"directoryIndex" : 2,
+					"id" : "Amplifier_test::@93626e108bae5b02ae92",
+					"jsonFile" : "target-Amplifier_test-Release-4626c02a9d3bdabd1ba3.json",
+					"name" : "Amplifier_test",
+					"projectIndex" : 2
+				},
+				{
+					"directoryIndex" : 2,
+					"id" : "Amplifier_test_autogen::@93626e108bae5b02ae92",
+					"jsonFile" : "target-Amplifier_test_autogen-Release-4e10cb260be712a27161.json",
+					"name" : "Amplifier_test_autogen",
+					"projectIndex" : 2
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "DataOperation::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-DataOperation-Release-19a578f5c92676435337.json",
+					"name" : "DataOperation",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "DataOperation_autogen::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-DataOperation_autogen-Release-25443789b867388f7554.json",
+					"name" : "DataOperation_autogen",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "DataOperation_test::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-DataOperation_test-Release-ee58fafc806527888dab.json",
+					"name" : "DataOperation_test",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "DataOperation_test_autogen::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-DataOperation_test_autogen-Release-ea0c98ca4dc7e3eb2e78.json",
+					"name" : "DataOperation_test_autogen",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 5,
+					"id" : "FileStorage::@d40519914b089e80a228",
+					"jsonFile" : "target-FileStorage-Release-cfa41730f4d481ae471a.json",
+					"name" : "FileStorage",
+					"projectIndex" : 5
+				},
+				{
+					"directoryIndex" : 5,
+					"id" : "FileStorage_autogen::@d40519914b089e80a228",
+					"jsonFile" : "target-FileStorage_autogen-Release-85da6c45c953c168e071.json",
+					"name" : "FileStorage_autogen",
+					"projectIndex" : 5
+				},
+				{
+					"directoryIndex" : 6,
+					"id" : "FileStorage_lib::@c4be932ce7ced056e160",
+					"jsonFile" : "target-FileStorage_lib-Release-b401bc56c77b61b09660.json",
+					"name" : "FileStorage_lib",
+					"projectIndex" : 6
+				},
+				{
+					"directoryIndex" : 6,
+					"id" : "FileStorage_lib_autogen::@c4be932ce7ced056e160",
+					"jsonFile" : "target-FileStorage_lib_autogen-Release-47745a6d810e136c0c4e.json",
+					"name" : "FileStorage_lib_autogen",
+					"projectIndex" : 6
+				},
+				{
+					"directoryIndex" : 7,
+					"id" : "MAT::@39aea3536c90e0b0c1b8",
+					"jsonFile" : "target-MAT-Release-dc20eb5b96fbb752ae37.json",
+					"name" : "MAT",
+					"projectIndex" : 7
+				},
+				{
+					"directoryIndex" : 7,
+					"id" : "MAT_autogen::@39aea3536c90e0b0c1b8",
+					"jsonFile" : "target-MAT_autogen-Release-10baa0827c7e3e947b2a.json",
+					"name" : "MAT_autogen",
+					"projectIndex" : 7
+				},
+				{
+					"directoryIndex" : 3,
+					"id" : "filter::@07174bb2a3b26533bc62",
+					"jsonFile" : "target-filter-Release-e502f0d892abeb870391.json",
+					"name" : "filter",
+					"projectIndex" : 3
+				},
+				{
+					"directoryIndex" : 3,
+					"id" : "filter_autogen::@07174bb2a3b26533bc62",
+					"jsonFile" : "target-filter_autogen-Release-3b661cefc243028551d3.json",
+					"name" : "filter_autogen",
+					"projectIndex" : 3
+				},
+				{
+					"directoryIndex" : 4,
+					"id" : "filter_test::@51fdffc38bdc1b250bc0",
+					"jsonFile" : "target-filter_test-Release-a1e96f92f172eefbb728.json",
+					"name" : "filter_test",
+					"projectIndex" : 4
+				},
+				{
+					"directoryIndex" : 4,
+					"id" : "filter_test_autogen::@51fdffc38bdc1b250bc0",
+					"jsonFile" : "target-filter_test_autogen-Release-23e02db1728182ec0b71.json",
+					"name" : "filter_test_autogen",
+					"projectIndex" : 4
+				},
+				{
+					"directoryIndex" : 8,
+					"id" : "mat_test::@411f1e0b0efa49e05b30",
+					"jsonFile" : "target-mat_test-Release-ecc97b5698d541860eb7.json",
+					"name" : "mat_test",
+					"projectIndex" : 8
+				},
+				{
+					"directoryIndex" : 8,
+					"id" : "mat_test_autogen::@411f1e0b0efa49e05b30",
+					"jsonFile" : "target-mat_test_autogen-Release-7f3e1651d0caa534253e.json",
+					"name" : "mat_test_autogen",
+					"projectIndex" : 8
+				}
+			]
+		}
+	],
+	"kind" : "codemodel",
+	"paths" : 
+	{
+		"build" : "D:/Qt_Projects/fatigue_new/BCIIA/DataOperation/out/build",
+		"source" : "D:/Qt_Projects/fatigue_new/BCIIA/DataOperation"
+	},
+	"version" : 
+	{
+		"major" : 2,
+		"minor" : 7
+	}
+}

@@ -1,0 +1,194 @@
+{
+	"AUTOGEN_COMMAND_LINE_LENGTH_MAX" : 32000,
+	"BUILD_DIR" : "D:/Qt_Projects/fatigue_new/BCIIA/DataOperation/out/build/Amplifier/Amplifier_autogen",
+	"CMAKE_BINARY_DIR" : "D:/Qt_Projects/fatigue_new/BCIIA/DataOperation/out/build",
+	"CMAKE_CURRENT_BINARY_DIR" : "D:/Qt_Projects/fatigue_new/BCIIA/DataOperation/out/build/Amplifier",
+	"CMAKE_CURRENT_SOURCE_DIR" : "D:/Qt_Projects/fatigue_new/BCIIA/DataOperation/Amplifier",
+	"CMAKE_EXECUTABLE" : "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/bin/cmake.exe",
+	"CMAKE_LIST_FILES" : 
+	[
+		"D:/Qt_Projects/fatigue_new/BCIIA/DataOperation/Amplifier/CMakeLists.txt",
+		"D:/ProgramFile/Qt/5.14.2/msvc2017_64/lib/cmake/Qt5/Qt5ConfigVersion.cmake",
+		"D:/ProgramFile/Qt/5.14.2/msvc2017_64/lib/cmake/Qt5/Qt5Config.cmake",
+		"D:/ProgramFile/Qt/5.14.2/msvc2017_64/lib/cmake/Qt5/Qt5ModuleLocation.cmake",
+		"D:/ProgramFile/Qt/5.14.2/msvc2017_64/lib/cmake/Qt5Core/Qt5CoreConfigVersion.cmake",
+		"D:/ProgramFile/Qt/5.14.2/msvc2017_64/lib/cmake/Qt5Core/Qt5CoreConfig.cmake",
+		"D:/ProgramFile/Qt/5.14.2/msvc2017_64/lib/cmake/Qt5Core/Qt5CoreConfigExtras.cmake",
+		"D:/ProgramFile/Qt/5.14.2/msvc2017_64/lib/cmake/Qt5Core/Qt5CoreConfigExtrasMkspecDir.cmake",
+		"D:/ProgramFile/Qt/5.14.2/msvc2017_64/lib/cmake/Qt5Core/Qt5CoreMacros.cmake",
+		"C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/share/cmake-3.29/Modules/CMakeParseArguments.cmake",
+		"D:/ProgramFile/Qt/5.14.2/msvc2017_64/lib/cmake/Qt5Widgets/Qt5WidgetsConfigVersion.cmake",
+		"D:/ProgramFile/Qt/5.14.2/msvc2017_64/lib/cmake/Qt5Widgets/Qt5WidgetsConfig.cmake",
+		"D:/ProgramFile/Qt/5.14.2/msvc2017_64/lib/cmake/Qt5Gui/Qt5GuiConfigVersion.cmake",
+		"D:/ProgramFile/Qt/5.14.2/msvc2017_64/lib/cmake/Qt5Gui/Qt5GuiConfig.cmake",
+		"D:/ProgramFile/Qt/5.14.2/msvc2017_64/lib/cmake/Qt5Gui/Qt5Gui_QGifPlugin.cmake",
+		"D:/ProgramFile/Qt/5.14.2/msvc2017_64/lib/cmake/Qt5Gui/Qt5Gui_QICNSPlugin.cmake",
+		"D:/ProgramFile/Qt/5.14.2/msvc2017_64/lib/cmake/Qt5Gui/Qt5Gui_QICOPlugin.cmake",
+		"D:/ProgramFile/Qt/5.14.2/msvc2017_64/lib/cmake/Qt5Gui/Qt5Gui_QJpegPlugin.cmake",
+		"D:/ProgramFile/Qt/5.14.2/msvc2017_64/lib/cmake/Qt5Gui/Qt5Gui_QMinimalIntegrationPlugin.cmake",
+		"D:/ProgramFile/Qt/5.14.2/msvc2017_64/lib/cmake/Qt5Gui/Qt5Gui_QOffscreenIntegrationPlugin.cmake",
+		"D:/ProgramFile/Qt/5.14.2/msvc2017_64/lib/cmake/Qt5Gui/Qt5Gui_QSvgIconPlugin.cmake",
+		"D:/ProgramFile/Qt/5.14.2/msvc2017_64/lib/cmake/Qt5Gui/Qt5Gui_QSvgPlugin.cmake",
+		"D:/ProgramFile/Qt/5.14.2/msvc2017_64/lib/cmake/Qt5Gui/Qt5Gui_QTgaPlugin.cmake",
+		"D:/ProgramFile/Qt/5.14.2/msvc2017_64/lib/cmake/Qt5Gui/Qt5Gui_QTiffPlugin.cmake",
+		"D:/ProgramFile/Qt/5.14.2/msvc2017_64/lib/cmake/Qt5Gui/Qt5Gui_QTuioTouchPlugin.cmake",
+		"D:/ProgramFile/Qt/5.14.2/msvc2017_64/lib/cmake/Qt5Gui/Qt5Gui_QVirtualKeyboardPlugin.cmake",
+		"D:/ProgramFile/Qt/5.14.2/msvc2017_64/lib/cmake/Qt5Gui/Qt5Gui_QWbmpPlugin.cmake",
+		"D:/ProgramFile/Qt/5.14.2/msvc2017_64/lib/cmake/Qt5Gui/Qt5Gui_QWebGLIntegrationPlugin.cmake",
+		"D:/ProgramFile/Qt/5.14.2/msvc2017_64/lib/cmake/Qt5Gui/Qt5Gui_QWebpPlugin.cmake",
+		"D:/ProgramFile/Qt/5.14.2/msvc2017_64/lib/cmake/Qt5Gui/Qt5Gui_QWindowsDirect2DIntegrationPlugin.cmake",
+		"D:/ProgramFile/Qt/5.14.2/msvc2017_64/lib/cmake/Qt5Gui/Qt5Gui_QWindowsIntegrationPlugin.cmake",
+		"D:/ProgramFile/Qt/5.14.2/msvc2017_64/lib/cmake/Qt5Gui/Qt5Gui_QXdgDesktopPortalThemePlugin.cmake",
+		"D:/ProgramFile/Qt/5.14.2/msvc2017_64/lib/cmake/Qt5Gui/Qt5GuiConfigExtras.cmake",
+		"D:/ProgramFile/Qt/5.14.2/msvc2017_64/lib/cmake/Qt5Widgets/Qt5Widgets_QWindowsVistaStylePlugin.cmake",
+		"D:/ProgramFile/Qt/5.14.2/msvc2017_64/lib/cmake/Qt5Widgets/Qt5WidgetsConfigExtras.cmake",
+		"D:/ProgramFile/Qt/5.14.2/msvc2017_64/lib/cmake/Qt5Widgets/Qt5WidgetsMacros.cmake",
+		"C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/share/cmake-3.29/Modules/CMakeParseArguments.cmake",
+		"D:/ProgramFile/Qt/5.14.2/msvc2017_64/lib/cmake/Qt5QuickWidgets/Qt5QuickWidgetsConfigVersion.cmake",
+		"D:/ProgramFile/Qt/5.14.2/msvc2017_64/lib/cmake/Qt5QuickWidgets/Qt5QuickWidgetsConfig.cmake",
+		"D:/ProgramFile/Qt/5.14.2/msvc2017_64/lib/cmake/Qt5Quick/Qt5QuickConfigVersion.cmake",
+		"D:/ProgramFile/Qt/5.14.2/msvc2017_64/lib/cmake/Qt5Quick/Qt5QuickConfig.cmake",
+		"D:/ProgramFile/Qt/5.14.2/msvc2017_64/lib/cmake/Qt5QmlModels/Qt5QmlModelsConfigVersion.cmake",
+		"D:/ProgramFile/Qt/5.14.2/msvc2017_64/lib/cmake/Qt5QmlModels/Qt5QmlModelsConfig.cmake",
+		"D:/ProgramFile/Qt/5.14.2/msvc2017_64/lib/cmake/Qt5Qml/Qt5QmlConfigVersion.cmake",
+		"D:/ProgramFile/Qt/5.14.2/msvc2017_64/lib/cmake/Qt5Qml/Qt5QmlConfig.cmake",
+		"D:/ProgramFile/Qt/5.14.2/msvc2017_64/lib/cmake/Qt5Network/Qt5NetworkConfigVersion.cmake",
+		"D:/ProgramFile/Qt/5.14.2/msvc2017_64/lib/cmake/Qt5Network/Qt5NetworkConfig.cmake",
+		"D:/ProgramFile/Qt/5.14.2/msvc2017_64/lib/cmake/Qt5Network/Qt5Network_QGenericEnginePlugin.cmake",
+		"D:/ProgramFile/Qt/5.14.2/msvc2017_64/lib/cmake/Qt5Qml/Qt5QmlConfigExtras.cmake",
+		"D:/ProgramFile/Qt/5.14.2/msvc2017_64/lib/cmake/Qt5Qml/Qt5Qml_QDebugMessageServiceFactory.cmake",
+		"D:/ProgramFile/Qt/5.14.2/msvc2017_64/lib/cmake/Qt5Qml/Qt5Qml_QLocalClientConnectionFactory.cmake",
+		"D:/ProgramFile/Qt/5.14.2/msvc2017_64/lib/cmake/Qt5Qml/Qt5Qml_QQmlDebugServerFactory.cmake",
+		"D:/ProgramFile/Qt/5.14.2/msvc2017_64/lib/cmake/Qt5Qml/Qt5Qml_QQmlDebuggerServiceFactory.cmake",
+		"D:/ProgramFile/Qt/5.14.2/msvc2017_64/lib/cmake/Qt5Qml/Qt5Qml_QQmlInspectorServiceFactory.cmake",
+		"D:/ProgramFile/Qt/5.14.2/msvc2017_64/lib/cmake/Qt5Qml/Qt5Qml_QQmlNativeDebugConnectorFactory.cmake",
+		"D:/ProgramFile/Qt/5.14.2/msvc2017_64/lib/cmake/Qt5Qml/Qt5Qml_QQmlNativeDebugServiceFactory.cmake",
+		"D:/ProgramFile/Qt/5.14.2/msvc2017_64/lib/cmake/Qt5Qml/Qt5Qml_QQmlPreviewServiceFactory.cmake",
+		"D:/ProgramFile/Qt/5.14.2/msvc2017_64/lib/cmake/Qt5Qml/Qt5Qml_QQmlProfilerServiceFactory.cmake",
+		"D:/ProgramFile/Qt/5.14.2/msvc2017_64/lib/cmake/Qt5Qml/Qt5Qml_QQuickProfilerAdapterFactory.cmake",
+		"D:/ProgramFile/Qt/5.14.2/msvc2017_64/lib/cmake/Qt5Qml/Qt5Qml_QTcpServerConnectionFactory.cmake",
+		"D:/Qt_Projects/fatigue_new/BCIIA/DataOperation/Amplifier/res/amplifier.qrc"
+	],
+	"CMAKE_SOURCE_DIR" : "D:/Qt_Projects/fatigue_new/BCIIA/DataOperation",
+	"CROSS_CONFIG" : false,
+	"DEP_FILE" : "",
+	"DEP_FILE_RULE_NAME" : "",
+	"HEADERS" : 
+	[
+		[
+			"D:/Qt_Projects/fatigue_new/BCIIA/DataOperation/Amplifier/src/amplifier.h",
+			"MU",
+			"UVLADIE3JM/moc_amplifier.cpp",
+			null
+		],
+		[
+			"D:/Qt_Projects/fatigue_new/BCIIA/DataOperation/Amplifier/src/amplifierdevice.h",
+			"MU",
+			"UVLADIE3JM/moc_amplifierdevice.cpp",
+			null
+		],
+		[
+			"D:/Qt_Projects/fatigue_new/BCIIA/DataOperation/Amplifier/src/datathread.h",
+			"MU",
+			"UVLADIE3JM/moc_datathread.cpp",
+			null
+		],
+		[
+			"D:/Qt_Projects/fatigue_new/BCIIA/DataOperation/Amplifier/src/pluginmanage.h",
+			"MU",
+			"UVLADIE3JM/moc_pluginmanage.cpp",
+			null
+		],
+		[
+			"D:/Qt_Projects/fatigue_new/BCIIA/DataOperation/Amplifier/src/pluginwidget.h",
+			"MU",
+			"UVLADIE3JM/moc_pluginwidget.cpp",
+			null
+		]
+	],
+	"HEADER_EXTENSIONS" : [ "h", "hh", "h++", "hm", "hpp", "hxx", "in", "txx" ],
+	"INCLUDE_DIR" : "D:/Qt_Projects/fatigue_new/BCIIA/DataOperation/out/build/Amplifier/Amplifier_autogen/include",
+	"MOC_COMPILATION_FILE" : "D:/Qt_Projects/fatigue_new/BCIIA/DataOperation/out/build/Amplifier/Amplifier_autogen/mocs_compilation.cpp",
+	"MOC_DEFINITIONS" : 
+	[
+		"QT_CORE_LIB",
+		"QT_GUI_LIB",
+		"QT_NETWORK_LIB",
+		"QT_NO_DEBUG",
+		"QT_QMLMODELS_LIB",
+		"QT_QML_LIB",
+		"QT_QUICKWIDGETS_LIB",
+		"QT_QUICK_LIB",
+		"QT_WIDGETS_LIB",
+		"WIN32"
+	],
+	"MOC_DEPEND_FILTERS" : 
+	[
+		[
+			"Q_PLUGIN_METADATA",
+			"[\n][ \t]*Q_PLUGIN_METADATA[ \t]*\\([^\\)]*FILE[ \t]*\"([^\"]+)\""
+		]
+	],
+	"MOC_INCLUDES" : 
+	[
+		"D:/Qt_Projects/fatigue_new/BCIIA/DataOperation/out/build/Amplifier",
+		"D:/Qt_Projects/fatigue_new/BCIIA/DataOperation/Amplifier",
+		"D:/Qt_Projects/fatigue_new/BCIIA/DataOperation/Amplifier/src",
+		"D:/Qt_Projects/fatigue_new/BCIIA/DataOperation/Amplifier/filter/src",
+		"D:/ProgramFile/Qt/5.14.2/msvc2017_64/include",
+		"D:/ProgramFile/Qt/5.14.2/msvc2017_64/include/QtCore",
+		"D:/ProgramFile/Qt/5.14.2/msvc2017_64/mkspecs/win32-msvc",
+		"D:/ProgramFile/Qt/5.14.2/msvc2017_64/include/QtWidgets",
+		"D:/ProgramFile/Qt/5.14.2/msvc2017_64/include/QtGui",
+		"D:/ProgramFile/Qt/5.14.2/msvc2017_64/include/QtANGLE",
+		"D:/ProgramFile/Qt/5.14.2/msvc2017_64/include/QtQuickWidgets",
+		"D:/ProgramFile/Qt/5.14.2/msvc2017_64/include/QtQuick",
+		"D:/ProgramFile/Qt/5.14.2/msvc2017_64/include/QtQmlModels",
+		"D:/ProgramFile/Qt/5.14.2/msvc2017_64/include/QtQml",
+		"D:/ProgramFile/Qt/5.14.2/msvc2017_64/include/QtNetwork"
+	],
+	"MOC_MACRO_NAMES" : [ "Q_OBJECT", "Q_GADGET", "Q_NAMESPACE", "Q_NAMESPACE_EXPORT" ],
+	"MOC_OPTIONS" : [],
+	"MOC_PATH_PREFIX" : false,
+	"MOC_PREDEFS_CMD" : [],
+	"MOC_PREDEFS_FILE" : "",
+	"MOC_RELAXED_MODE" : false,
+	"MOC_SKIP" : [],
+	"MULTI_CONFIG" : false,
+	"PARALLEL" : 14,
+	"PARSE_CACHE_FILE" : "D:/Qt_Projects/fatigue_new/BCIIA/DataOperation/out/build/Amplifier/CMakeFiles/Amplifier_autogen.dir/ParseCache.txt",
+	"QT_MOC_EXECUTABLE" : "D:/ProgramFile/Qt/5.14.2/msvc2017_64/bin/moc.exe",
+	"QT_UIC_EXECUTABLE" : "D:/ProgramFile/Qt/5.14.2/msvc2017_64/bin/uic.exe",
+	"QT_VERSION_MAJOR" : 5,
+	"QT_VERSION_MINOR" : 14,
+	"SETTINGS_FILE" : "D:/Qt_Projects/fatigue_new/BCIIA/DataOperation/out/build/Amplifier/CMakeFiles/Amplifier_autogen.dir/AutogenUsed.txt",
+	"SOURCES" : 
+	[
+		[
+			"D:/Qt_Projects/fatigue_new/BCIIA/DataOperation/Amplifier/src/amplifier.cpp",
+			"MU",
+			null
+		],
+		[
+			"D:/Qt_Projects/fatigue_new/BCIIA/DataOperation/Amplifier/src/datathread.cpp",
+			"MU",
+			null
+		],
+		[
+			"D:/Qt_Projects/fatigue_new/BCIIA/DataOperation/Amplifier/src/pluginmanage.cpp",
+			"MU",
+			null
+		],
+		[
+			"D:/Qt_Projects/fatigue_new/BCIIA/DataOperation/Amplifier/src/pluginwidget.cpp",
+			"MU",
+			null
+		]
+	],
+	"UIC_OPTIONS" : [],
+	"UIC_SEARCH_PATHS" : [],
+	"UIC_SKIP" : [],
+	"UIC_UI_FILES" : [],
+	"USE_BETTER_GRAPH" : false,
+	"VERBOSITY" : 0
+}
