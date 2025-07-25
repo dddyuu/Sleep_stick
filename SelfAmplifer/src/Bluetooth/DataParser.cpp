@@ -94,7 +94,7 @@ DataParser::EEGChannelData DataParser::parseEEGChannelData(const QByteArray& eeg
 {
     EEGChannelData channelData;
 
-    // 根据Python代码中的处理逻辑：
+    // Python代码中的处理逻辑：
     // window_size = 7, step = 7
     // for i in range(0, len(data_array), step):
     //     data = data_array[i:i + window_size]
@@ -113,13 +113,13 @@ DataParser::EEGChannelData DataParser::parseEEGChannelData(const QByteArray& eeg
                 static_cast<quint8>(window[1]) * 256 +
                 static_cast<quint8>(window[2]) * 65536) * 10;
             channelData.fp1.append(fp1_value);
-
+            qDebug()<<"fp1"<<fp1_value;
             // FP2通道：接下来3字节，小端序
             int fp2_value = (static_cast<quint8>(window[3]) +
                 static_cast<quint8>(window[4]) * 256 +
                 static_cast<quint8>(window[5]) * 65536) * 10;
             channelData.fp2.append(fp2_value);
-
+            qDebug()<<"fp2"<<fp2_value;
             // 事件标记：第7字节 - data[6]
             int event_value = static_cast<quint8>(window[6]);
             channelData.events.append(event_value);

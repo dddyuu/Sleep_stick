@@ -126,7 +126,7 @@ void MainWindow::onDataReceived(const DataParser::ParsedData& data)
     // 显示更详细的数据信息
     QString log = QString("接收到数据 - 序号: %1, 电池百分比: %2, EEG通道数: %3, 音频数据长度: %4")
         .arg(data.order_num)
-        .arg(data.battery.value("percentage").toDouble(), 0, 'f', 2)  // 使用百分比
+        .arg(data.battery)
         .arg(data.eeg_data.size())  // 现在有size()方法了
         .arg(data.video_data.size());
     ui->textLog->append(log);
