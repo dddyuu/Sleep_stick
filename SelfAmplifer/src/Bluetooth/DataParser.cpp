@@ -117,8 +117,8 @@ DataParser::ParsedData DataParser::parseData(const QByteArray& data)
 
         result.valid = true;
 
-        qDebug() << "解析成功 - 命令:" << command << "数据长度:" << data_length
-            << "序号:" << result.order_num << "电池:" << battery_voltage;
+        // qDebug() << "解析成功 - 命令:" << command << "数据长度:" << data_length
+        //     << "序号:" << result.order_num << "电池:" << battery_voltage;
 
     }
     catch (...) {

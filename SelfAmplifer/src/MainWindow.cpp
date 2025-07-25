@@ -66,7 +66,7 @@ void MainWindow::onDisconnectClicked()
 
 void MainWindow::onStartRecvClicked()
 {
-    // 【修改20】在开始接收时先发送启动命令
+    // 在开始接收时先发送启动命令
     controller->sendCommand(BluetoothDeviceController::StartCommand);
     controller->startReceiving();
     ui->textLog->append("发送启动命令并开始接收数据");
@@ -74,7 +74,7 @@ void MainWindow::onStartRecvClicked()
 
 void MainWindow::onStopRecvClicked()
 {
-    // 【修改21】在停止接收时发送停止命令
+    // 在停止接收时发送停止命令
     controller->sendCommand(BluetoothDeviceController::StopCommand);
     controller->stopReceiving();
     ui->textLog->append("发送停止命令并停止接收数据");
@@ -123,7 +123,7 @@ void MainWindow::onConnectionStateChanged(BluetoothDeviceController::ConnectionS
 
 void MainWindow::onDataReceived(const DataParser::ParsedData& data)
 {
-    // 【修改22】显示更详细的数据信息
+    // 显示更详细的数据信息
     QString log = QString("接收到数据 - 序号: %1, 电池电压: %2, EEG通道数: %3, 音频数据长度: %4")
         .arg(data.order_num)
         .arg(data.battery.value("voltage").toInt())
