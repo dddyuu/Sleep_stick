@@ -66,20 +66,25 @@ void MainWindow::onDisconnectClicked()
 
 void MainWindow::onStartRecvClicked()
 {
+    // 【修改20】在开始接收时先发送启动命令
+    controller->sendCommand(BluetoothDeviceController::StartCommand);
     controller->startReceiving();
-    ui->textLog->append("开始接收数据");
+    ui->textLog->append("发送启动命令并开始接收数据");
 }
 
 void MainWindow::onStopRecvClicked()
 {
+    // 【修改21】在停止接收时发送停止命令
+    controller->sendCommand(BluetoothDeviceController::StopCommand);
     controller->stopReceiving();
-    ui->textLog->append("停止接收数据");
+    ui->textLog->append("发送停止命令并停止接收数据");
 }
 
 void MainWindow::onSendTestCmdClicked()
 {
+    // 发送启动命令而不是测试命令
     controller->sendCommand(BluetoothDeviceController::StartCommand);
-    ui->textLog->append("发送开始命令");
+    ui->textLog->append("发送启动命令");
 }
 
 void MainWindow::onStartTcpServerClicked()
@@ -118,11 +123,18 @@ void MainWindow::onConnectionStateChanged(BluetoothDeviceController::ConnectionS
 
 void MainWindow::onDataReceived(const DataParser::ParsedData& data)
 {
-    QString log = QString("接收到数据 - 序号: %1, 电池电压: %2, 脑电通道数: %3")
+    // 【修改22】显示更详细的数据信息
+    QString log = QString("接收到数据 - 序号: %1, 电池电压: %2, EEG通道数: %3, 音频数据长度: %4")
         .arg(data.order_num)
         .arg(data.battery.value("voltage").toInt())
-        .arg(data.eeg_data.size());
+        .arg(data.eeg_data.size())
+        .arg(data.video_data.size());
     ui->textLog->append(log);
+
+    // 显示原始数据的前几个字节
+    QString rawData = QString("原始数据前20字节: %1")
+        .arg(QString(data.rawdata.left(20).toHex(' ').toUpper()));
+    ui->textLog->append(rawData);
 }
 
 void MainWindow::onErrorOccurred(const QString& error)
