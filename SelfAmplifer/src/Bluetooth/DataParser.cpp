@@ -89,6 +89,19 @@ DataParser::ParsedData DataParser::parseData(const QByteArray& data)
     return result;
 }
 
+// 静态方法版本
+DataParser::ParsedData DataParser::parseDataStatic(const QByteArray& data)
+{
+    return instance().parseData(data);
+}
+
+// 单例实例
+DataParser& DataParser::instance()
+{
+    static DataParser instance;
+    return instance;
+}
+
 bool DataParser::validateChecksum(const QByteArray& data)
 {
     if (data.length() < 2) return false;

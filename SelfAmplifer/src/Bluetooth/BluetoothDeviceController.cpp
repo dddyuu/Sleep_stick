@@ -558,7 +558,8 @@ void BluetoothDeviceController::processReceivedData(const QByteArray& data)
         // qDebug() << "数据包前20字节:" << packet.left(20).toHex(' ').toUpper();
 
         // 解析数据
-        DataParser::ParsedData parsedData = DataParser::parseData(packet);
+        //DataParser::ParsedData parsedData = DataParser::parseData(packet);
+        DataParser::ParsedData parsedData = DataParser::parseDataStatic(packet);
         if (parsedData.valid) {
             // qDebug() << "数据解析成功！序号:" << parsedData.order_num;
             emit dataReceived(parsedData);
