@@ -12,72 +12,73 @@ DataParser::ParsedData DataParser::parseData(const QByteArray& data)
     result.valid = false;
     result.rawdata = data;
 
-    // 检查数据长度
-    if (data.length() != 187) {
-        qWarning() << "数据长度不正确:" << data.length() << "期望长度: 187";
+    // 根据Python代码检查数据长度（187字节）
+    if (data.length() < 8) {
+        qWarning() << "数据长度不足:" << data.length();
         return result;
     }
 
-    // 验证校验和
-    if (!validateChecksum(data)) {
-        qWarning() << "数据校验失败";
+    // 根据Python代码检查帧头
+    QByteArray frameHeader = QByteArray::fromHex("41495290");  // FRAME_HEADER = bytes([0x41, 0x49, 0x52, 0x90])
+    if (data.left(4) != frameHeader) {
+        qWarning() << "帧头校验失败";
         return result;
     }
 
     try {
-        // 解析序号 (前3字节) - 根据文档修正
-        result.order_num = data.mid(0, 3).toHex().toUpper();
+        // 根据Python代码解析各字段：
 
-        // 解析电池数据 (3-5字节) - 根据文档修正
-        result.battery = parseBatteryData(data, 3);
+        // 获取命令类型 (2字节) - Python: struct.unpack('<H', data_bytes[4:6])[0]
+        int command = static_cast<quint8>(data[4]) | (static_cast<quint8>(data[5]) << 8);
 
-        // 解析音频数据 (5-65字节, 20个采样点，每个3字节) - 根据文档修正
-        result.video_data.clear();
-        for (int i = 0; i < 20; ++i) {
-            int audioValue = parse24BitValue(data, 5 + i * 3);
-            result.video_data.append(audioValue);
+        // 获取数据长度 (2字节) - Python: struct.unpack('<H', data_bytes[6:8])[0]
+        int data_length = static_cast<quint8>(data[6]) | (static_cast<quint8>(data[7]) << 8);
+
+        // 序列号 (3字节) - Python: order_num_bytes = data_bytes[8:11]
+        QByteArray order_num_bytes = data.mid(8, 3);
+        result.order_num = order_num_bytes.toHex().toUpper();
+
+        // 电池数据 (2字节) - Python: struct.unpack('<H', data_bytes[11:13])[0]
+        result.battery = static_cast<quint8>(data[11]) | (static_cast<quint8>(data[12]) << 8);
+
+        // 音频数据 (60字节) - Python: audio_data = data_bytes[13:73]
+        result.video_data = data.mid(13, 60);
+
+        // EEG数据 (70字节) - Python: eeg_data = data_bytes[73:143]
+        result.eeg_data = data.mid(73, 70);
+
+        // 解析EEG通道数据
+        result.parsed_eeg_data = parseEEGChannelData(result.eeg_data);
+
+        // 是否脱落 (1字节) - Python: struct.unpack('<B', data_bytes[143:144])[0]
+        result.is_fall = (static_cast<quint8>(data[143]) != 0);
+
+        // 四元数据 (16字节) - Python: four_data = data_bytes[144:160]
+        result.four_data = data.mid(144, 16);
+
+        // 重力数据 (3字节) - Python: gravity_bytes = data_bytes[160:163]
+        QByteArray gravity_bytes = data.mid(160, 3);
+        result.gravity_data = static_cast<quint8>(gravity_bytes[0]) |
+            (static_cast<quint8>(gravity_bytes[1]) << 8) |
+            (static_cast<quint8>(gravity_bytes[2]) << 16);
+
+        // 预留 (4字节) - Python: yuliu = data_bytes[163:167]
+        result.yuliu = data.mid(163, 4);
+
+        // 光源数据 (18字节) - Python: shine = data_bytes[167:185]
+        result.shine = data.mid(167, 18);
+
+        // 校验 (2字节) - Python: struct.unpack('<H', data_bytes[185:])[0]
+        if (data.length() >= 187) {
+            result.jiaoyan = static_cast<quint8>(data[185]) | (static_cast<quint8>(data[186]) << 8);
         }
 
-        // 解析脑电数据 (65-135字节, 70字节) - 这是关键部分
-        result.eeg_data = parseEEGData(data, 65, 70);
-
-        // 解析跌倒标志 (135字节)
-        result.is_fall = (data[135] != 0);
-
-        // 解析四元数数据 (136-152字节, 4个float值)
-        result.four_data.clear();
-        for (int i = 0; i < 4; ++i) {
-            // 按照文档说明，四元数是float类型，大端格式
-            union {
-                uint32_t intVal;
-                float floatVal;
-            } converter;
-
-            converter.intVal = (static_cast<quint8>(data[136 + i * 4]) << 24) |
-                (static_cast<quint8>(data[136 + i * 4 + 1]) << 16) |
-                (static_cast<quint8>(data[136 + i * 4 + 2]) << 8) |
-                static_cast<quint8>(data[136 + i * 4 + 3]);
-
-            // 将float转换为int存储（可能需要根据实际需求调整）
-            result.four_data.append(static_cast<int>(converter.floatVal * 1000)); // 放大1000倍保持精度
+        // 将EEG数据转换为十六进制字符串表示 - Python: payload = ' '.join(f"{b:02X}" for b in eeg_data)
+        QStringList hexList;
+        for (int i = 0; i < result.eeg_data.length(); ++i) {
+            hexList << QString("%1").arg(static_cast<quint8>(result.eeg_data[i]), 2, 16, QChar('0')).toUpper();
         }
-
-        // 解析重力数据 (152-155字节, 3个字节)
-        result.gravity_data.clear();
-        for (int i = 0; i < 3; ++i) {
-            int gravityValue = static_cast<int8_t>(data[152 + i]); // 有符号字节
-            result.gravity_data.append(gravityValue);
-        }
-
-        // 预留数据 (155-159字节, 4字节)
-        result.yuliu = data.mid(155, 4);
-
-        // 光源数据 (159-177字节, 18字节，6个采样点)
-        // 根据文档，每3字节一个采样点，这里暂时解析第一个采样点作为shine值
-        result.shine = parse24BitValue(data, 159);
-
-        // 校验值 (177字节)
-        result.jiaoyan = static_cast<quint8>(data[177]);
+        result.payload = hexList.join(" ");
 
         result.valid = true;
     }
@@ -87,6 +88,59 @@ DataParser::ParsedData DataParser::parseData(const QByteArray& data)
     }
 
     return result;
+}
+
+DataParser::EEGChannelData DataParser::parseEEGChannelData(const QByteArray& eegData)
+{
+    EEGChannelData channelData;
+
+    // 根据Python代码中的处理逻辑：
+    // window_size = 7, step = 7
+    // for i in range(0, len(data_array), step):
+    //     data = data_array[i:i + window_size]
+    //     fp1.append((data[0] + data[1] * 256 + data[2] * 65536) * 10)
+    //     fp2.append((data[3] + data[4] * 256 + data[5] * 65536) * 10)
+
+    int window_size = 7;
+    int step = 7;
+
+    for (int i = 0; i < eegData.length(); i += step) {
+        if (i + window_size <= eegData.length()) {
+            QByteArray window = eegData.mid(i, window_size);
+
+            // FP1通道：前3字节，小端序
+            int fp1_value = (static_cast<quint8>(window[0]) +
+                static_cast<quint8>(window[1]) * 256 +
+                static_cast<quint8>(window[2]) * 65536) * 10;
+            channelData.fp1.append(fp1_value);
+
+            // FP2通道：接下来3字节，小端序
+            int fp2_value = (static_cast<quint8>(window[3]) +
+                static_cast<quint8>(window[4]) * 256 +
+                static_cast<quint8>(window[5]) * 65536) * 10;
+            channelData.fp2.append(fp2_value);
+
+            // 事件标记：第7字节 - data[6]
+            int event_value = static_cast<quint8>(window[6]);
+            channelData.events.append(event_value);
+        }
+    }
+
+    return channelData;
+}
+
+int DataParser::parse24BitLittleEndian(const QByteArray& data, int start)
+{
+    if (start + 2 >= data.length()) {
+        return 0;
+    }
+
+    // 小端序：低字节在前
+    int value = static_cast<quint8>(data[start]) +
+        static_cast<quint8>(data[start + 1]) * 256 +
+        static_cast<quint8>(data[start + 2]) * 65536;
+
+    return value;
 }
 
 // 静态方法版本
@@ -100,98 +154,4 @@ DataParser& DataParser::instance()
 {
     static DataParser instance;
     return instance;
-}
-
-bool DataParser::validateChecksum(const QByteArray& data)
-{
-    if (data.length() < 2) return false;
-
-    quint8 calculatedChecksum = 0;
-    // 计算前177字节的校验和（根据文档，PSG_Data为179字节，但这里是177+8=185的格式）
-    for (int i = 0; i < 177; ++i) {
-        calculatedChecksum ^= static_cast<quint8>(data[i]);
-    }
-
-    quint8 receivedChecksum = static_cast<quint8>(data[177]);
-    return calculatedChecksum == receivedChecksum;
-}
-
-QVector<int> DataParser::bytesToIntVector(const QByteArray& data, int start, int length)
-{
-    QVector<int> result;
-    for (int i = 0; i < length; i += 2) {
-        if (start + i + 1 < data.length()) {
-            qint16 value = static_cast<qint16>((static_cast<quint8>(data[start + i + 1]) << 8) |
-                static_cast<quint8>(data[start + i]));
-            result.append(value);
-        }
-    }
-    return result;
-}
-
-QVariantMap DataParser::parseBatteryData(const QByteArray& data, int start)
-{
-    QVariantMap battery;
-    if (start + 2 <= data.length()) {
-        // 解析电池数据（2字节）
-        uint16_t batteryValue = (static_cast<quint8>(data[start + 1]) << 8) |
-            static_cast<quint8>(data[start]);
-
-        // 根据文档示例：80.25%（0X50 0X19）
-        // 计算电池百分比
-        float batteryPercent = batteryValue / 100.0f;
-        battery["percentage"] = batteryPercent;
-        battery["raw_value"] = batteryValue;
-    }
-    return battery;
-}
-
-DataParser::EEGChannelData DataParser::parseEEGData(const QByteArray& data, int start, int length)
-{
-    EEGChannelData eegData;
-
-    // 根据文档和Python代码：
-    // 脑电数据70字节，每7字节一组，共10组
-    // 每组包含：fp1(3字节) + fp2(3字节) + event(1字节)
-
-    int groupCount = length / 7; // 应该是10组
-
-    for (int i = 0; i < groupCount; ++i) {
-        int groupStart = start + i * 7;
-
-        if (groupStart + 6 < data.length()) {
-            // 解析FP1通道数据 (前3字节，小端序：L+M*256+H*65536)
-            int fp1Value = parse24BitValue(data, groupStart);
-            eegData.fp1.append(fp1Value);
-
-            // 解析FP2通道数据 (中间3字节，小端序：L+M*256+H*65536)
-            int fp2Value = parse24BitValue(data, groupStart + 3);
-            eegData.fp2.append(fp2Value);
-
-            // 解析事件标记 (第7字节)
-            int eventValue = static_cast<quint8>(data[groupStart + 6]);
-            eegData.events.append(eventValue);
-        }
-    }
-
-    return eegData;
-}
-
-int DataParser::parse24BitValue(const QByteArray& data, int start)
-{
-    if (start + 2 >= data.length()) {
-        return 0;
-    }
-
-    // 小端序：L + M*256 + H*65536
-    int value = static_cast<quint8>(data[start]) |
-        (static_cast<quint8>(data[start + 1]) << 8) |
-        (static_cast<quint8>(data[start + 2]) << 16);
-
-    // 处理24位有符号数（如果最高位为1，则为负数）
-    if (value & 0x800000) {
-        value |= 0xFF000000; // 符号扩展
-    }
-
-    return value;
 }

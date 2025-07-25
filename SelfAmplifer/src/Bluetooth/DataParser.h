@@ -33,16 +33,18 @@ public:
     struct ParsedData {
         bool valid;
         QString order_num;
-        QVariantMap battery;
-        QVector<int> video_data;
-        EEGChannelData eeg_data;  // 修改为新的EEG数据结构
+        int battery;
+        QByteArray video_data;
+        QByteArray eeg_data;  // 原始EEG数据（70字节）
+        EEGChannelData parsed_eeg_data;  // 解析后的EEG数据
         bool is_fall;
-        QVector<int> four_data;
-        QVector<int> gravity_data;
+        QByteArray four_data;
+        int gravity_data;
         QByteArray yuliu;
-        int shine;
-        quint8 jiaoyan;
+        QByteArray shine;
+        int jiaoyan;
         QByteArray rawdata;
+        QString payload;  // 十六进制字符串表示
     };
 
     ParsedData parseData(const QByteArray& data);
@@ -54,11 +56,8 @@ public:
     static DataParser& instance();
 
 private:
-    bool validateChecksum(const QByteArray& data);
-    QVector<int> bytesToIntVector(const QByteArray& data, int start, int length);
-    QVariantMap parseBatteryData(const QByteArray& data, int start);
-    EEGChannelData parseEEGData(const QByteArray& data, int start, int length);
-    int parse24BitValue(const QByteArray& data, int start);
+    EEGChannelData parseEEGChannelData(const QByteArray& eegData);
+    int parse24BitLittleEndian(const QByteArray& data, int start);
 };
 
 #endif // DATAPARSER_H
