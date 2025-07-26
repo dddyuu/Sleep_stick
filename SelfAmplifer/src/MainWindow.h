@@ -18,6 +18,10 @@ class MainWindow : public QMainWindow
 public:
     explicit MainWindow(QWidget* parent = nullptr);
     ~MainWindow();
+    // 获取蓝牙控制器指针，供SelfAmplifer使用
+    BluetoothDeviceController* getBluetoothController() const {
+        return controller;
+    }
 
 private slots:
     void onScanClicked();

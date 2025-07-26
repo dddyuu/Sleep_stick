@@ -1,35 +1,40 @@
 #include "selfamplifer.h"
 #include "QDebug"
+
 SelfAmplifer::SelfAmplifer()
 {
     qRegisterMetaType<QList<double>>("QList<double>");
+    qRegisterMetaType<DataParser::ParsedData>("DataParser::ParsedData");
     init();
 }
 
 SelfAmplifer::~SelfAmplifer()
 {
-
+    if (mainWindow) {
+        mainWindow->deleteLater();
+    }
 }
 
 void SelfAmplifer::start()
 {
-    status=true;
+    status = true;
+    qDebug() << "SelfAmplifer: 开始数据采集";
 }
 
 void SelfAmplifer::stop()
 {
-    status=false;
+    status = false;
+    qDebug() << "SelfAmplifer: 停止数据采集";
 }
 
 QStringList SelfAmplifer::getChannelName()
 {
-    return {"FP2","AFZ","F4","F8","FCZ","FC4","FT8","CZ","T7","C3","FT7","FC3","F7","F3","FZ","FP1","O2","PO4","P8","P4",
-    "TP8","CP4","T8","C4","CP3","TP7","PZ","P3","P7","PO3","OZ","O1"};
+    return { "FP1", "FP2" };
 }
 
 quint8 SelfAmplifer::getChannnelNum()
 {
-    return channel_num;
+    return 2;
 }
 
 quint16 SelfAmplifer::getSampleRate()
@@ -37,14 +42,14 @@ quint16 SelfAmplifer::getSampleRate()
     return 2000;
 }
 
-QWidget *SelfAmplifer::getConnectWidget()
+QWidget* SelfAmplifer::getConnectWidget()
 {
-    return communication->getConnectWidget();
+    return mainWindow;
 }
 
-QWidget *SelfAmplifer::getConfigWidget()
+QWidget* SelfAmplifer::getConfigWidget()
 {
-    return NULL;
+    return nullptr;
 }
 
 QList<double> SelfAmplifer::getOneData()
@@ -53,18 +58,18 @@ QList<double> SelfAmplifer::getOneData()
     return data;
 }
 
-QList<QList<double> > SelfAmplifer::getChartData()
+QList<QList<double>> SelfAmplifer::getChartData()
 {
-    return eegdata.getChartData(32);
+    return eegdata.getChartData(2);
 }
 
-QList<QList<double>>SelfAmplifer::getRawData()
+QList<QList<double>> SelfAmplifer::getRawData()
 {
     QList<QList<double>> data;
     data.append(eegdata.getRawData());
-
     return data;
 }
+
 QList<uint8_t> SelfAmplifer::getEEGGameIndex()
 {
     return {};
@@ -72,7 +77,7 @@ QList<uint8_t> SelfAmplifer::getEEGGameIndex()
 
 QList<uint8_t> SelfAmplifer::getEEGIndex()
 {
-    return {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31};
+    return { 0, 1 };
 }
 
 QList<uint8_t> SelfAmplifer::getEyeIndex()
@@ -97,31 +102,95 @@ QList<uint8_t> SelfAmplifer::getHeartIndex()
 
 bool SelfAmplifer::connectStatus()
 {
-    return communication->connectstatus();
+    if (mainWindow && mainWindow->getBluetoothController()) {
+        return mainWindow->getBluetoothController()->connectionState() == BluetoothDeviceController::Connected;
+    }
+    return false;
 }
 
 void SelfAmplifer::setDecodeStatus(bool status)
 {
-    parse.setDecodeStatus(status);
+    decodeStatus = status;
+    qDebug() << "设置解码状态:" << status;
 }
+
 void SelfAmplifer::init()
 {
-    channel_num=parse.getChannelNum();//初始化通道数
-    status=false;//初始化采集器状态
-    //初始化TCP通信
-    communication=manage.setType(0);
-    //初始化通信与解析的连接
-    connect(communication,&Communication::readyRead,&parse,&Parse::append);
-    connect(communication,&Communication::connected,&parse,&Parse::start);
-    connect(communication,&Communication::newLogging,[=](QString logginng){
-        qDebug()<<logginng;
-    });
-    //初始化解析与存储的连接
-    connect(&parse,&Parse::parseFinished,this,[=](QList<double> data,QList<double> data_){
-        if(status)
-        {
-            eegdata.append(data,data_);
-        }
-    });
+    channel_num = 2; // FP1和FP2两个通道
+    status = false;  // 初始化采集器状态
+    decodeStatus = true; // 默认启用解码
 
+    // 创建MainWindow作为连接界面
+    mainWindow = new MainWindow();
+
+    // 连接MainWindow中蓝牙控制器的数据接收信号
+    if (mainWindow->getBluetoothController()) {
+        connect(mainWindow->getBluetoothController(), &BluetoothDeviceController::dataReceived,
+            this, &SelfAmplifer::onBluetoothDataReceived);
+
+        connect(mainWindow->getBluetoothController(), &BluetoothDeviceController::connectionStateChanged,
+            this, &SelfAmplifer::onConnectionStateChanged);
+
+        connect(mainWindow->getBluetoothController(), &BluetoothDeviceController::errorOccurred,
+            this, &SelfAmplifer::onBluetoothError);
+    }
+
+    qDebug() << "SelfAmplifer 初始化完成";
+}
+
+void SelfAmplifer::onBluetoothDataReceived(const DataParser::ParsedData& data)
+{
+    if (!status || !decodeStatus) {
+        return; // 如果未开始采集或解码被禁用，则忽略数据
+    }
+
+    // 处理接收到的蓝牙数据
+    if (data.valid && data.parsed_eeg_data.fp1.size() > 0 && data.parsed_eeg_data.fp2.size() > 0) {
+        // 将两个通道的数据按顺序合并到一个QList中
+        // 数据格式：[FP1_sample1, FP2_sample1, FP1_sample2, FP2_sample2, ...]
+
+        int sampleCount = qMin(data.parsed_eeg_data.fp1.size(), data.parsed_eeg_data.fp2.size());
+
+        for (int i = 0; i < sampleCount; ++i) {
+            QList<double> combinedData;
+
+            // 将FP1和FP2数据按顺序添加到组合数据中
+            combinedData.append(static_cast<double>(data.parsed_eeg_data.fp1[i]));
+            combinedData.append(static_cast<double>(data.parsed_eeg_data.fp2[i]));
+
+            // 对于chart_data和raw_data，我们使用相同的数据
+            // 如果需要不同的处理，可以在这里进行修改
+            eegdata.append(combinedData, combinedData);
+        }
+
+        qDebug() << QString("处理EEG数据 - 样本数: %1, 电池: %2%")
+            .arg(sampleCount)
+            .arg(data.battery);
+    }
+}
+
+void SelfAmplifer::onConnectionStateChanged(BluetoothDeviceController::ConnectionState state)
+{
+    QString stateText;
+    switch (state) {
+    case BluetoothDeviceController::Disconnected:
+        stateText = "未连接";
+        break;
+    case BluetoothDeviceController::Scanning:
+        stateText = "扫描中";
+        break;
+    case BluetoothDeviceController::Connecting:
+        stateText = "连接中";
+        break;
+    case BluetoothDeviceController::Connected:
+        stateText = "已连接";
+        break;
+    }
+
+    qDebug() << "蓝牙连接状态变更:" << stateText;
+}
+
+void SelfAmplifer::onBluetoothError(const QString& error)
+{
+    qDebug() << "蓝牙错误:" << error;
 }
