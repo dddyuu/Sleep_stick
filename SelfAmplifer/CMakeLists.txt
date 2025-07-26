@@ -16,16 +16,16 @@ endif()
 # 查找 Qt5 模块
 find_package(Qt5 COMPONENTS Core Widgets SerialPort Network Bluetooth REQUIRED)
 
-add_subdirectory(test)
-#
+#add_subdirectory(test)
+
 file(GLOB src "src/*")
 file(GLOB Communication "src/Communication/*")
 file(GLOB Protocols "src/Protocols/*")
 file(GLOB Bluetooth "src/Bluetooth/*")
 
 
-add_library(${PROJECT_NAME} ${src} ${Communication} ${Protocols} ${Bluetooth})
-#add_library(${PROJECT_NAME}  SHARED ${src} ${Communication} ${Protocols} ${Bluetooth})
+#add_library(${PROJECT_NAME} ${src} ${Communication} ${Protocols} ${Bluetooth})
+add_library(${PROJECT_NAME}  SHARED ${src} ${Communication} ${Protocols} ${Bluetooth})
 # 链接 Qt5 模块
 target_link_libraries(${PROJECT_NAME} PRIVATE
     Qt5::Core
