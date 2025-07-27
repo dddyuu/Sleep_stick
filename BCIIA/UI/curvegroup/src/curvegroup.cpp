@@ -13,7 +13,7 @@ CurveGroup::CurveGroup(QWidget *parent):QWidget(parent)
     CurveGroupConfig::init();
     this->setMaxPoint(CurveGroupConfig::getMaxPoint());
     //this->setCurveNumGroup(CurveGroupConfig::getGroupNum());
-    this->setCurveNumGroup(17);
+    this->setCurveNumGroup(2);
 }
 
 CurveGroup::~CurveGroup()
