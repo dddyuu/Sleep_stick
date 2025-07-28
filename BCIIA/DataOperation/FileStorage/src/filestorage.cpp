@@ -192,14 +192,14 @@ void FileStorage::save()
 {
     // 在save中
     qDebug() << "Saving" << this->label << "labels";
-    {
-        QMutexLocker locker(&mutex);
-        while (!dataReady || !labelReady)
-        {
-            condition.wait(&mutex);  // 等待数据和标签准备好
-        }
-        qDebug()<<"save is already;"<<dataReady<<labelReady;
-    }
+    // {
+    //     QMutexLocker locker(&mutex);
+    //     while (!dataReady || !labelReady)
+    //     {
+    //         condition.wait(&mutex);  // 等待数据和标签准备好
+    //     }
+    //     qDebug()<<"save is already;"<<dataReady<<labelReady;
+    // }
     qDebug()<<this->label;
     storage->save(amplifer_data.getData(), this->label, amplifer_data.getLen(),
                   amplifer_data.getSignalsChannelNum(), amplifer_data.getSignalsName());
