@@ -163,7 +163,7 @@ void FileStorage::init()
     this->timer->setTimerType(Qt::PreciseTimer);
     this->timer->setInterval(storage_time*1000);
 
-    QList<quint8> channel_num = {32};
+    QList<quint8> channel_num = {2};
     QList<unsigned int> srate = {1000};
     QStringList signals_name = { "eeg"};
     amplifer_data.setSignalsChannelNum(channel_num);
