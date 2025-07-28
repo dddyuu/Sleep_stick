@@ -39,7 +39,7 @@ quint8 SelfAmplifer::getChannnelNum()
 
 quint16 SelfAmplifer::getSampleRate()
 {
-    return 2000;
+    return 1000;
 }
 
 QWidget* SelfAmplifer::getConnectWidget()
@@ -163,9 +163,9 @@ void SelfAmplifer::onBluetoothDataReceived(const DataParser::ParsedData& data)
             eegdata.append(combinedData, combinedData);
         }
 
-        qDebug() << QString("处理EEG数据 - 样本数: %1, 电池: %2%")
-            .arg(sampleCount)
-            .arg(data.battery);
+        // qDebug() << QString("处理EEG数据 - 样本数: %1, 电池: %2%")
+            // .arg(sampleCount)
+            // .arg(data.battery);
     }
 }
 

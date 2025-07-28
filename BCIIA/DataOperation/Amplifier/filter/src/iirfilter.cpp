@@ -1,6 +1,6 @@
 #include "iirfilter.h"
 
-const int CHANNELNUM=32;
+const int CHANNELNUM=2;
 
 IIRFILTER::IIRFILTER()
 {
@@ -64,7 +64,7 @@ double IIRFILTER::B_filter(int channel_num,int i,double temp)
 
     if(n_N==0)
     {
-        n_N = 40;
+        n_N = 20;
 
     }
     else

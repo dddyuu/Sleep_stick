@@ -325,16 +325,16 @@ public:
 
 
 
-    double matrixh[32][5][3];
-    double matrixl[32][5][3];
+    double matrixh[2][5][3];
+    double matrixl[2][5][3];
 
 
 
     double iir(double *a, double *b, double *w, double xin, int N_IIR);
     double B_filter(int channel_num,int i,double xn);
-    int n_N=40;//1000则20
-    double x[32][41];
-    double y[32][41];
+    int n_N=20;//1000则20
+    double x[2][41];
+    double y[2][41];
 
 };
 

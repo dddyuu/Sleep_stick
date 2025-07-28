@@ -28,9 +28,9 @@ void DataThread::run()
 
                 for (int i = 0;i < buf_num;i++) {
                     QList<double> chart_data = all_data.at(i);
-                    //qDebug() << "滤波前:"<<chart_data;
+                    // qDebug() << "滤波前:"<<chart_data;
                     chart_data = filter.filterData(chart_data);
-                    //qDebug() << "滤波后:" << chart_data;
+                    // qDebug() << "滤波后:" << chart_data;
                     if (!chart_data.isEmpty())
                     {
                         emit chartDataFinish(chart_data);
