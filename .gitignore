@@ -8,3 +8,4 @@
 /LocalAmplifer/SelfAmplifer/.vs
 /LocalAmplifer/SelfAmplifer/out
 *.user
+onnx/.idea/workspace.xml
