@@ -113,6 +113,9 @@ public:
     explicit MathGame(QWidget* parent = nullptr);
     ~MathGame();
 
+signals:
+    void tagSent(const QString& tag);  // 发送标签信号
+
 private slots:
     void updateGameTimer();
     void updateQuestionTimer();

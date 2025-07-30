@@ -111,15 +111,28 @@ void PlatFormWidget::setConnect()
     connect(fatiguereswidget, &FatigueResWidget::transSubname, &bciia, &BCIIA::reciveSubName);
     connect(this, &PlatFormWidget::result_send, fatiguereswidget, &FatigueResWidget::sendData);
     //转发计算的label进行保存
-    connect(this, &PlatFormWidget::result_send, fileStorage, &FileStorage::appendLabel);
-    //转发本地label
-    connect(&bciia, &BCIIA::locallabelFinished, this, [=](QList<uint8_t> data){
-        if(!is_ceived){
-            is_ceived=1;
-            xx1=data;
-            localLabelIndex=0;
+    //connect(this, &PlatFormWidget::result_send, fileStorage, &FileStorage::appendLabel);
+    // 新增：连接MathGame的标签信号并转发到FileStorage
+    connect(mathgame, &MathGame::tagSent, this, [=](const QString& tag) {
+        // 将QString标签转换为quint8并转发
+        bool ok;
+        quint8 tagValue = tag.toUInt(&ok);
+        if (ok) {
+            qDebug() << "接收到MathGame标签:" << tag << "转换为:" << tagValue;
+            fileStorage->appendLabel(tagValue);
         }
-    });
+        else {
+            qDebug() << "标签转换失败:" << tag;
+        }
+        });
+    //转发本地label
+    //connect(&bciia, &BCIIA::locallabelFinished, this, [=](QList<uint8_t> data){
+    //    if(!is_ceived){
+    //        is_ceived=1;
+    //        xx1=data;
+    //        localLabelIndex=0;
+    //    }
+    //});
 
     connect(&bciia, &BCIIA::chartDataFinished, this, [=](QList<double> data) {
         pre.append(data);
