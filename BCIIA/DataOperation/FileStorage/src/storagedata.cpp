@@ -118,6 +118,7 @@ void Data::reset()
 }
 bool Data::bufferFull()
 {
+	
 	if (data_bias[0] == signals_srate[0] * time_len *signals_channel_num[0])
 	{
 		return true;
@@ -140,6 +141,7 @@ QList<quint8> Data::getlabel() const {
 
 QList<quint64> File::Data::getLen()
 {
+	qDebug() << "signals_srate[0]:" << signals_srate[0];
 	return data_bias;
 }
 

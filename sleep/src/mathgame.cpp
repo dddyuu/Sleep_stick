@@ -101,14 +101,14 @@ void MathGame::startGame()
     case 1: startTag = "11"; break;  // 难度一开始标签
     case 2: startTag = "21"; break;  // 难度二开始标签
     case 3: startTag = "31"; break;  // 难度三开始标签（如果需要）
-    default: startTag = "00"; break;
+    default: startTag = "11"; break;
     }
     emit tagSent(startTag);
     qDebug() << "发送游戏开始标签:" << startTag;
 
     // 重置游戏状态
     resetGame();
-    gameEnded = false;  // 重置游戏结束标志
+
     // 启用数字按钮
     for (int i = 0; i <= 9; i++) {
         QPushButton* btn = findChild<QPushButton*>(QString("numBtn%1").arg(i));
@@ -173,11 +173,21 @@ void MathGame::updateGameTimer()
     totalTime--;
     ui->gameTimeDisplay->display(totalTime);
 
-    if (totalTime <= 0) {
+    if (totalTime <= 0) {       
+        // 发送游戏结束标签
+        QString endTag;
+        switch (difficulty) {
+        case 1: endTag = "12"; break;  // 难度一结束标签
+        case 2: endTag = "22"; break;  // 难度二结束标签
+        case 3: endTag = "32"; break;  // 难度三结束标签
+        default: endTag = "12"; break;
+        }
+        emit tagSent(endTag);
+        qDebug() << "发送游戏结束标签:" << endTag;
         gameTimer->stop();
         questionTimer->stop();
-		gameEnded = true;
         showResults();
+
     }
 }
 
@@ -230,14 +240,8 @@ void MathGame::updateAccuracy()
 
 void MathGame::newQuestion()
 {
-    if (totalTime <= 0 && !gameEnded) {
-        gameEnded = true;  // 设置游戏结束标志
+    if (totalTime <= 0) {
         showResults();
-        return;
-    }
-
-    // 如果游戏已结束，不再生成新问题
-    if (gameEnded) {
         return;
     }
 
@@ -431,20 +435,7 @@ void MathGame::generateEquation()
 
 void MathGame::showResults()
 {
-    if (!gameEnded)
-    {
-		gameEnded = true;  // 设置游戏结束标志
-        // 发送游戏结束标签
-        QString endTag;
-        switch (difficulty) {
-        case 1: endTag = "12"; break;  // 难度一结束标签
-        case 2: endTag = "22"; break;  // 难度二结束标签
-        case 3: endTag = "32"; break;  // 难度三结束标签
-        default: endTag = "12"; break;
-        }
-        emit tagSent(endTag);
-        qDebug() << "发送游戏结束标签:" << endTag;
-    }
+
     // 禁用数字按钮
     for (int i = 0; i <= 9; i++) {
         QPushButton* btn = findChild<QPushButton*>(QString("numBtn%1").arg(i));

@@ -189,7 +189,7 @@ void FileStorage::setFileName(QString filenane)
 void FileStorage::appendEvent(int type)
 {
     qDebug() << "getevernt" << type<<":"<< amplifer_data.getLen()[0];
-    storage->appendEvent(type, amplifer_data.getLen()[0]);
+    storage->appendEvent(type, (amplifer_data.getLen()[0])/2);
 }
 
 void FileStorage::init()
@@ -220,7 +220,7 @@ void FileStorage::init()
     amplifer_data.setSignalsChannelNum(channel_num);
     amplifer_data.setSignalsName(signals_name);
     amplifer_data.setSignalsSrate(srate);
-    amplifer_data.setTimeLen(120);
+    amplifer_data.setTimeLen(600);
     amplifer_data.alloc_data();
 }
 
