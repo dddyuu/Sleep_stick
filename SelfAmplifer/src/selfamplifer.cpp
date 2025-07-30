@@ -39,7 +39,7 @@ quint8 SelfAmplifer::getChannnelNum()
 
 quint16 SelfAmplifer::getSampleRate()
 {
-    return 1000;
+    return 500;
 }
 
 QWidget* SelfAmplifer::getConnectWidget()

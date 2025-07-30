@@ -7,6 +7,15 @@
 #include "storagedata.h"
 #include "matstorage.h"
 #include "qwaitcondition.h"
+#include "QElapsedTimer"
+
+// 标签信息结构体
+struct LabelInfo {
+    quint8 label;           // 标签值
+    qint64 timestamp;       // 时间戳（毫秒）
+    quint64 samplePoint;    // 对应的采样点
+};
+
 class FileStorage:public QObject
 {
     Q_OBJECT
@@ -56,6 +65,7 @@ private:
     // 单例指针
     static FileStorage* m_instance;
     QList<quint8>label;
+    QList<LabelInfo> labelInfoList;  // 存储标签信息列表
     //暂停标志
     bool  pause_flag;
     //开始标志
@@ -69,6 +79,10 @@ private:
     File::Data amplifer_data;
 
     QTimer *timer;
+    QElapsedTimer *elapsedTimer;  // 计时器
+    quint64 totalSampleCount;     // 总采样点计数
+    quint16 currentSampleRate;    // 当前采样率
+    
     void initTimer();
     void init();
     void setConnect();

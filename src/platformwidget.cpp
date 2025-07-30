@@ -116,15 +116,27 @@ void PlatFormWidget::setConnect()
     connect(mathgame, &MathGame::tagSent, this, [=](const QString& tag) {
         // 将QString标签转换为quint8并转发
         bool ok;
-        quint8 tagValue = tag.toUInt(&ok);
+        int tagValue = tag.toUInt(&ok);
         if (ok) {
             qDebug() << "接收到MathGame标签:" << tag << "转换为:" << tagValue;
-            fileStorage->appendLabel(tagValue);
+            fileStorage->appendEvent(tagValue);
         }
         else {
             qDebug() << "标签转换失败:" << tag;
         }
         });
+    //connect(mathgame, &MathGame::tagSent, this, [=](const QString& tag) {
+    //    // 将QString标签转换为quint8并转发
+    //    bool ok;
+    //    quint8 tagValue = tag.toUInt(&ok);
+    //    if (ok) {
+    //        qDebug() << "接收到MathGame标签:" << tag << "转换为:" << tagValue;
+    //        fileStorage->appendLabel(tagValue);
+    //    }
+    //    else {
+    //        qDebug() << "标签转换失败:" << tag;
+    //    }
+    //    });
     //转发本地label
     //connect(&bciia, &BCIIA::locallabelFinished, this, [=](QList<uint8_t> data){
     //    if(!is_ceived){
