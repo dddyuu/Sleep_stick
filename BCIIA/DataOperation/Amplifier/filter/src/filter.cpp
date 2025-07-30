@@ -70,6 +70,7 @@ void Filter::setSampleRate(uint16_t srate)
     }
     else if(srate==500)
     {
+		qDebug() << "srate==500";
         low_b=&iirfilter->low_b500[0][0];
         low_a=&iirfilter->low_a500[0][0];
         high_b=&iirfilter->high_b500[0][0];
@@ -78,6 +79,7 @@ void Filter::setSampleRate(uint16_t srate)
     else if(srate==1000)
     {
         printf("1000");
+        qDebug() << "srate==1000";
         low_b=&iirfilter->low_b1000[0][0];
         low_a=&iirfilter->low_a1000[0][0];
         high_b=&iirfilter->high_b1000[0][0];
@@ -85,6 +87,7 @@ void Filter::setSampleRate(uint16_t srate)
     }
     else if (srate == 2000) {
         printf("2000");
+        qDebug() << "srate==2000";
         low_b = &iirfilter->low_b2000[0][0];
         low_a = &iirfilter->low_a2000[0][0];
         high_b = &iirfilter->high_b2000[0][0];

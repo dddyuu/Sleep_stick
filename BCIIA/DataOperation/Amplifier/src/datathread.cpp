@@ -25,7 +25,11 @@ void DataThread::run()
                 QList<QList<double>> all_data=device->getChartData();
                 
                 int buf_num=all_data.size();
-
+                for (int ch = 0; ch < all_data.size(); ch++) {
+                    for (int j = 0; j < all_data[ch].size(); j++) {
+                        all_data[ch][j] = all_data[ch][j] / 100.0;
+                    }
+                }
                 for (int i = 0;i < buf_num;i++) {
                     QList<double> chart_data = all_data.at(i);
                     // qDebug() << "滤波前:"<<chart_data;

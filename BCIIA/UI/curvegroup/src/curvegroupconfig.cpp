@@ -10,7 +10,7 @@ void CurveGroupConfig::init()
     }
     QSettings  settings(path,QSettings::IniFormat);
     settings.setValue("groupnum",8);
-    settings.setValue("maxpoint",2000);
+    settings.setValue("maxpoint",1000);
 }
 
 uint8_t CurveGroupConfig::getGroupNum()

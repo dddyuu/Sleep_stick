@@ -188,8 +188,9 @@ void FileStorage::setFileName(QString filenane)
 
 void FileStorage::appendEvent(int type)
 {
-    qDebug() << "getevernt" << type<<":"<< amplifer_data.getLen()[0];
-    storage->appendEvent(type, (amplifer_data.getLen()[0])/2);
+    qDebug() << "getevernt" << type<<":"<< amplifer_data.getLen()[0]/2;
+	int len = amplifer_data.getLen()[0];
+    storage->appendEvent(type, len/2);
 }
 
 void FileStorage::init()
