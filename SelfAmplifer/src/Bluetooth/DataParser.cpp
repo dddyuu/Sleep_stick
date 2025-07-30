@@ -111,13 +111,13 @@ DataParser::EEGChannelData DataParser::parseEEGChannelData(const QByteArray& eeg
             // FP1通道：前3字节，小端序
             int fp1_value = (static_cast<quint8>(window[0]) +
                 static_cast<quint8>(window[1]) * 256 +
-                static_cast<quint8>(window[2]) * 65536) * 10/12;
+                static_cast<quint8>(window[2]) * 65536) * 10;
             channelData.fp1.append(fp1_value);
             //qDebug()<<"fp1"<<fp1_value;
             // FP2通道：接下来3字节，小端序
             int fp2_value = (static_cast<quint8>(window[3]) +
                 static_cast<quint8>(window[4]) * 256 +
-                static_cast<quint8>(window[5]) * 65536) * 10/12;
+                static_cast<quint8>(window[5]) * 65536) * 10;
             channelData.fp2.append(fp2_value);
             //qDebug()<<"fp2"<<fp2_value;
             // 事件标记：第7字节 - data[6]

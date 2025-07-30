@@ -150,6 +150,8 @@ private:
 
     Node* buildTree(int numCount, int depth);
     Node* randomNode(bool allowHighPriority);
+
+	bool gameEnded = false; // 游戏是否结束
 };
 
 #endif // MATHGAME_H
