@@ -10,10 +10,25 @@
 #include <QStringList>
 #include <QRandomGenerator>
 #include <QStack>
+#include <QDateTime>
+#include <QElapsedTimer>
 #include <cmath>
+
 namespace Ui {
     class MathGame;
 }
+
+// 题目回答记录结构
+struct QuestionRecord {
+    QDateTime timestamp;    // 题目开始时间
+    int timeSpent;         // 答题用时(毫秒)
+    bool isCorrect;        // 是否正确
+    bool isTimeout;        // 是否超时
+    QString question;      // 题目内容
+    int answer;           // 正确答案
+    int userAnswer;       // 用户答案(-1表示超时)
+};
+
 struct Node {
     enum Type { Number, Op } type;
     int value = 0;
@@ -83,7 +98,7 @@ struct Node {
                     // 对于左子树，除法或减法的左操作数通常不需要括号
                     // 但乘法的左操作数是加法时需要括号
                     else if (!isRight && (parentOp == '*' || parentOp == '/') &&
-                             (child->op == '+' || child->op == '-')) {
+                        (child->op == '+' || child->op == '-')) {
                         needParen = true;
                     }
                 }
@@ -92,7 +107,7 @@ struct Node {
             if (needParen) out += "(";
             child->toString(out);
             if (needParen) out += ")";
-        };
+            };
 
         // 处理左子树，传入当前运算符和false表示不是右子树
         print(left, out, op, false);
@@ -105,6 +120,7 @@ struct Node {
         print(right, out, op, true);
     }
 };
+
 class MathGame : public QWidget
 {
     Q_OBJECT
@@ -133,6 +149,14 @@ private:
     void adjustTreeValue(Node* node, int newValue);
     void swapTreeValues(Node* a, Node* b);
     int countTreeNodes(Node* node);
+    bool hasDoubleDigit(Node* node);  // 新增：检查是否包含两位数
+    void ensureDoubleDigit(Node* node);  // 新增：确保包含两位数
+    int generateNumber(int difficulty);  // 新增：根据难度生成数字
+
+    // 数据保存相关函数
+    void saveExperimentData();
+    double calculateAverageCorrectTime();
+    QString getExcelFilePath();
 
     Ui::MathGame* ui;
     QTimer* gameTimer;      // 总游戏时间计时器
@@ -148,10 +172,16 @@ private:
     int correctAnswers;     // 正确答案数量
     double accuracy;        // 准确率
 
+    // 新增：题目记录相关
+    QList<QuestionRecord> questionRecords;  // 所有题目记录
+    QElapsedTimer questionElapsedTimer;     // 单题计时器
+    QDateTime gameStartTime;                // 游戏开始时间
+    QString currentQuestion;                // 当前题目内容
+
     Node* buildTree(int numCount, int depth);
     Node* randomNode(bool allowHighPriority);
 
-	bool gameEnded = false; // 游戏是否结束
+    bool gameEnded = false; // 游戏是否结束
 };
 
 #endif // MATHGAME_H
