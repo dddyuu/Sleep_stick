@@ -49,7 +49,8 @@ void IIRFILTER::initW(){
 double IIRFILTER::B_filter(int channel_num,int i,double temp)
 {
     double yn=0;
-    double r= 0.9379583027202;//2000hz 0.9379583027202
+    double r = 0.2592851121953;//500
+    //double r= 0.9379583027202;//2000hz 0.9379583027202
     double b=(1+r)/2;
 
 
