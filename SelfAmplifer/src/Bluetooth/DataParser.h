@@ -54,10 +54,23 @@ public:
 
     // 创建单例实例方法
     static DataParser& instance();
+    // ADC最大值：2^23 = 8388608
+    const int adcMaxVal = 8388608; // 2^23
 
+    // 基准电压和增益
+    const double baseVoltage = 4.5; // 基准电压
+    const int eegFP1Magnification = 12; // FP1通道放大倍数
+    const int eegFP2Magnification = 12; // FP2通道放大倍数
 private:
     EEGChannelData parseEEGChannelData(const QByteArray& eegData);
     int parse24BitLittleEndian(const QByteArray& data, int start);
+	//补码转原码函数
+    int complement2Original(int rawData, int adcMaxVal);
+    // 补码转电压函数
+    double complementToVoltage(int rawData, int adcMaxVal, double baseVoltage, int gain);
+
+
+
 };
 
 #endif // DATAPARSER_H

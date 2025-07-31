@@ -94,12 +94,13 @@ DataParser::EEGChannelData DataParser::parseEEGChannelData(const QByteArray& eeg
 {
     EEGChannelData channelData;
 
-    // Python代码中的处理逻辑：
-    // window_size = 7, step = 7
-    // for i in range(0, len(data_array), step):
-    //     data = data_array[i:i + window_size]
-    //     fp1.append((data[0] + data[1] * 256 + data[2] * 65536) * 10)
-    //     fp2.append((data[3] + data[4] * 256 + data[5] * 65536) * 10)
+    // ADC最大值：2^23 = 8388608
+    const int adcMaxVal = 8388608; // 2^23
+
+    // 基准电压和增益
+    const double baseVoltage = 4.5; // 基准电压
+    const int eegFP1Magnification = 12; // FP1通道放大倍数
+    const int eegFP2Magnification = 12; // FP2通道放大倍数
 
     int window_size = 7;
     int step = 7;
@@ -109,17 +110,28 @@ DataParser::EEGChannelData DataParser::parseEEGChannelData(const QByteArray& eeg
             QByteArray window = eegData.mid(i, window_size);
 
             // FP1通道：前3字节，小端序
-            int fp1_value = (static_cast<quint8>(window[0]) +
+            int fp1_raw = (static_cast<quint8>(window[0]) +
                 static_cast<quint8>(window[1]) * 256 +
-                static_cast<quint8>(window[2]) * 65536) * 10;
-            channelData.fp1.append(fp1_value);
-            //qDebug()<<"fp1"<<fp1_value;
+                static_cast<quint8>(window[2]) * 65536) ;
+            //channelData.fp1.append(fp1_value);
+            
             // FP2通道：接下来3字节，小端序
-            int fp2_value = (static_cast<quint8>(window[3]) +
+            int fp2_raw = (static_cast<quint8>(window[3]) +
                 static_cast<quint8>(window[4]) * 256 +
-                static_cast<quint8>(window[5]) * 65536) * 10;
-            channelData.fp2.append(fp2_value);
-            //qDebug()<<"fp2"<<fp2_value;
+                static_cast<quint8>(window[5]) * 65536) ;
+            //channelData.fp2.append(fp2_value);
+
+            // 将补码转换为原码
+            int fp1_original = complement2Original(fp1_raw, adcMaxVal);
+            int fp2_original = complement2Original(fp2_raw, adcMaxVal);
+            // 转换为电压值（微伏）
+            double fp1_voltage = complementToVoltage(fp1_original, adcMaxVal, baseVoltage, eegFP1Magnification);
+            double fp2_voltage = complementToVoltage(fp2_original, adcMaxVal, baseVoltage, eegFP2Magnification);
+            // 存储电压值（转换为整数，保持原有接口兼容性）
+            channelData.fp1.append(static_cast<int>(fp1_voltage));
+            channelData.fp2.append(static_cast<int>(fp2_voltage));
+            //qDebug()<<"fp1"<<fp1_voltage;
+            //qDebug()<<"fp2"<<fp2_voltage;
             // 事件标记：第7字节 - data[6]
             int event_value = static_cast<quint8>(window[6]);
             channelData.events.append(event_value);
@@ -128,7 +140,26 @@ DataParser::EEGChannelData DataParser::parseEEGChannelData(const QByteArray& eeg
 
     return channelData;
 }
+// 补码转原码函数
+int DataParser::complement2Original(int rawData, int adcMaxVal)
+{
+    int temp = rawData;
+    if (temp > adcMaxVal) {
+        temp -= 2 * adcMaxVal;
+    }
+    return temp;
+}
+// 补码转电压函数
+double DataParser::complementToVoltage(int rawData, int adcMaxVal, double baseVoltage, int gain)
+{
+    //int temp = complement2Original(rawData, adcMaxVal);
 
+    // 公式计算电压值
+    // 这里使用 VOLTAGE_UV 模式（微伏）
+    double voltage = static_cast<double>(rawData) * baseVoltage * 1000 * 1000 / adcMaxVal / gain;
+
+    return voltage;
+}
 int DataParser::parse24BitLittleEndian(const QByteArray& data, int start)
 {
     if (start + 2 >= data.length()) {
