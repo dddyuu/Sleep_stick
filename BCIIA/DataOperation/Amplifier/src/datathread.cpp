@@ -27,7 +27,7 @@ void DataThread::run()
                 int buf_num=all_data.size();
                 for (int ch = 0; ch < all_data.size(); ch++) {
                     for (int j = 0; j < all_data[ch].size(); j++) {
-                        all_data[ch][j] = all_data[ch][j] / 100.0;
+                        all_data[ch][j] = all_data[ch][j] / 12.0;
                     }
                 }
                 for (int i = 0;i < buf_num;i++) {
