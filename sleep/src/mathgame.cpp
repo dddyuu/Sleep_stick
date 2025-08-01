@@ -14,6 +14,7 @@
 #include <QDir>
 #include <QFile>
 #include <QTextStream>
+#include <QKeyEvent>
 #include <cmath>
 #include <functional>
 #include <vector>
@@ -28,7 +29,9 @@ MathGame::MathGame(QWidget* parent) :
     answer(0),
     questionsAnswered(0),
     correctAnswers(0),
-    accuracy(0.0)
+    accuracy(0.0),
+    currentButtonIndex(0), // 默认选中按钮0
+    keyboardNavigationEnabled(false)
 {
     ui->setupUi(this);
 
@@ -55,15 +58,28 @@ MathGame::MathGame(QWidget* parent) :
     connect(difficultyGroup, QOverload<int>::of(&QButtonGroup::buttonClicked),
         this, &MathGame::difficultySelected);
 
-    // 设置数字按钮
+    // 设置数字按钮和键盘导航
     numberGroup = new QButtonGroup(this);
-    for (int i = 0; i <= 9; i++) {
+
+    // 按0-9的顺序初始化按钮列表
+    numberButtons.clear();
+    // 先添加数字0按钮
+    QPushButton* btn0 = findChild<QPushButton*>("numBtn0");
+    if (btn0) {
+        numberGroup->addButton(btn0, 0);
+        numberButtons.append(btn0);
+        btn0->setEnabled(false);
+    }
+    // 再添加数字1-9按钮
+    for (int i = 1; i <= 9; i++) {
         QPushButton* btn = findChild<QPushButton*>(QString("numBtn%1").arg(i));
         if (btn) {
             numberGroup->addButton(btn, i);
+            numberButtons.append(btn);
             btn->setEnabled(false);
         }
     }
+
     connect(numberGroup, QOverload<int>::of(&QButtonGroup::buttonClicked),
         this, &MathGame::numberClicked);
 
@@ -72,6 +88,9 @@ MathGame::MathGame(QWidget* parent) :
 
     // 重置按钮
     connect(ui->resetBtn, &QPushButton::clicked, this, &MathGame::resetGame);
+
+    // 设置焦点策略，使窗口能够接收键盘事件
+    setFocusPolicy(Qt::StrongFocus);
 }
 
 MathGame::~MathGame()
@@ -81,6 +100,120 @@ MathGame::~MathGame()
     delete questionTimer;
     delete difficultyGroup;
     delete numberGroup;
+}
+
+void MathGame::keyPressEvent(QKeyEvent* event)
+{
+    // 只在游戏进行中且数字按钮启用时处理键盘事件
+    if (!keyboardNavigationEnabled) {
+        QWidget::keyPressEvent(event);
+        return;
+    }
+
+    switch (event->key()) {
+    case Qt::Key_Right:
+    case Qt::Key_Down:
+        moveToNextButton();
+        break;
+    case Qt::Key_Left:
+    case Qt::Key_Up:
+        moveToPrevButton();
+        break;
+    case Qt::Key_Return:
+    case Qt::Key_Enter:
+        selectCurrentButton();
+        break;
+    case Qt::Key_0:
+        currentButtonIndex = 0;
+        updateButtonFocus();
+        break;
+    case Qt::Key_1:
+        currentButtonIndex = 1;
+        updateButtonFocus();
+        break;
+    case Qt::Key_2:
+        currentButtonIndex = 2;
+        updateButtonFocus();
+        break;
+    case Qt::Key_3:
+        currentButtonIndex = 3;
+        updateButtonFocus();
+        break;
+    case Qt::Key_4:
+        currentButtonIndex = 4;
+        updateButtonFocus();
+        break;
+    case Qt::Key_5:
+        currentButtonIndex = 5;
+        updateButtonFocus();
+        break;
+    case Qt::Key_6:
+        currentButtonIndex = 6;
+        updateButtonFocus();
+        break;
+    case Qt::Key_7:
+        currentButtonIndex = 7;
+        updateButtonFocus();
+        break;
+    case Qt::Key_8:
+        currentButtonIndex = 8;
+        updateButtonFocus();
+        break;
+    case Qt::Key_9:
+        currentButtonIndex = 9;
+        updateButtonFocus();
+        break;
+    default:
+        QWidget::keyPressEvent(event);
+        break;
+    }
+}
+
+void MathGame::moveToNextButton()
+{
+    currentButtonIndex++;
+    if (currentButtonIndex > 9) { // 0-9循环
+        currentButtonIndex = 0;
+    }
+    updateButtonFocus();
+}
+
+void MathGame::moveToPrevButton()
+{
+    currentButtonIndex--;
+    if (currentButtonIndex < 0) {
+        currentButtonIndex = 9; // 回到按钮9
+    }
+    updateButtonFocus();
+}
+
+void MathGame::updateButtonFocus()
+{
+    // 清除所有按钮的高亮样式
+    for (QPushButton* btn : numberButtons) {
+        if (btn && btn->isEnabled()) {
+            btn->setStyleSheet("background-color: white; border-radius: 10px;");
+        }
+    }
+
+    // 高亮当前选中的按钮
+    QPushButton* currentBtn = nullptr;
+    if (currentButtonIndex >= 0 && currentButtonIndex <= 9) {
+        // 按钮0-9，直接使用索引
+        currentBtn = numberButtons[currentButtonIndex];
+    }
+
+    if (currentBtn && currentBtn->isEnabled()) {
+        currentBtn->setStyleSheet("background-color: #2196F3; color: white; border-radius: 10px; border: 3px solid #1976D2;");
+    }
+}
+
+void MathGame::selectCurrentButton()
+{
+    int number = currentButtonIndex; // 直接使用currentButtonIndex作为数字值
+
+    // 模拟按钮点击
+    numberClicked(number);
 }
 
 void MathGame::difficultySelected(int level)
@@ -120,11 +253,14 @@ void MathGame::startGame()
     gameStartTime = QDateTime::currentDateTime();
     questionRecords.clear();
 
-    // 启用数字按钮
+    // 启用数字按钮和键盘导航
+    keyboardNavigationEnabled = true;
+    currentButtonIndex = 0; // 重置到按钮0
     for (int i = 0; i <= 9; i++) {
         QPushButton* btn = findChild<QPushButton*>(QString("numBtn%1").arg(i));
         if (btn) btn->setEnabled(true);
     }
+    updateButtonFocus(); // 更新按钮焦点显示
 
     // 隐藏难度选择
     ui->difficultyWidget->setVisible(false);
@@ -133,6 +269,9 @@ void MathGame::startGame()
     // 显示游戏控件
     ui->timeBar->setVisible(true);
     ui->resetBtn->setVisible(true);
+
+    // 设置焦点到主窗口以接收键盘事件
+    setFocus();
 
     // 开始计时
     gameTimer->start(1000); // 每秒更新一次
@@ -144,6 +283,9 @@ void MathGame::resetGame()
     // 停止所有计时器
     gameTimer->stop();
     questionTimer->stop();
+
+    // 禁用键盘导航
+    keyboardNavigationEnabled = false;
 
     // 重置游戏状态
     totalTime = 120;
@@ -164,10 +306,13 @@ void MathGame::resetGame()
     ui->difficultyWidget->setVisible(true);
     ui->startBtn->setVisible(true);
 
-    // 禁用数字按钮
+    // 禁用数字按钮并清除样式
     for (int i = 0; i <= 9; i++) {
         QPushButton* btn = findChild<QPushButton*>(QString("numBtn%1").arg(i));
-        if (btn) btn->setEnabled(false);
+        if (btn) {
+            btn->setEnabled(false);
+            btn->setStyleSheet("background-color: white; border-radius: 10px;");
+        }
     }
 
     // 隐藏游戏控件
@@ -193,6 +338,9 @@ void MathGame::updateGameTimer()
         qDebug() << "发送游戏结束标签:" << endTag;
         gameTimer->stop();
         questionTimer->stop();
+
+        // 禁用键盘导航
+        keyboardNavigationEnabled = false;
 
         // 保存实验数据
         saveExperimentData();
@@ -283,6 +431,13 @@ void MathGame::newQuestion()
     ui->resultLabel->clear();
 
     generateEquation();
+
+    // 重置按钮焦点到0
+    currentButtonIndex = 0;
+    updateButtonFocus();
+
+    // 确保窗口有焦点以接收键盘事件
+    setFocus();
 
     // 开始计时这道题
     questionElapsedTimer.start();
@@ -536,7 +691,7 @@ int MathGame::countTreeNodes(Node* node) {
 }
 
 QString MathGame::generateExpression(int count) {
-    const int MAX_ATTEMPTS = 200; // 增加尝试次数
+    const int MAX_ATTEMPTS = 500; // 进一步增加尝试次数
     Node* root = nullptr;
     int val = -1;
 
@@ -564,87 +719,70 @@ QString MathGame::generateExpression(int count) {
                 break;
         }
 
-        if (!root || val < 0 || val > 9) {
-            // 后备方案：生成简单表达式
-            int a, b;
+        // 如果超过最大尝试次数仍无法生成有效表达式，继续尝试
+        while (!root || val < 0 || val > 9) {
+            delete root;
+            root = buildTree(count, 1);
+
+            // 对于二级和三级难度，确保至少包含两个两位数且没有三位数
             if (difficulty >= 2) {
-                // 确保至少有两个两位数
-                a = QRandomGenerator::global()->bounded(static_cast<quint32>(10), static_cast<quint32>(100)); // 10-99
-                b = QRandomGenerator::global()->bounded(static_cast<quint32>(10), static_cast<quint32>(100)); // 10-99
-                // 确保减法结果在0-9范围内
-                if (a < b) std::swap(a, b);
-                while (a - b > 9) {
-                    a = QRandomGenerator::global()->bounded(static_cast<quint32>(10), static_cast<quint32>(20));
-                    b = QRandomGenerator::global()->bounded(static_cast<quint32>(10), static_cast<quint32>(a + 1));
+                if (!hasThreeDigit(root) && countDoubleDigits(root) >= 2) {
+                    // 已经满足条件
+                }
+                else if (!hasThreeDigit(root)) {
+                    // 没有三位数但两位数不够，补充两位数
+                    ensureTwoDoubleDigits(root);
+                }
+                else {
+                    // 有三位数，重新生成
+                    continue;
                 }
             }
-            else {
-                a = QRandomGenerator::global()->bounded(static_cast<quint32>(1), static_cast<quint32>(10));
-                b = QRandomGenerator::global()->bounded(static_cast<quint32>(1), static_cast<quint32>(a + 1));
+
+            if (root && root->evaluate(val) && val >= 0 && val <= 9) {
+                break;
             }
-            root = new Node('-', new Node(a), new Node(b));
-            root->evaluate(val);
         }
     }
     else {
         // 两个数的情况
         int a, b;
-        if (difficulty >= 2) {
-            // 二级和三级难度：至少有两个两位数
-            a = QRandomGenerator::global()->bounded(static_cast<quint32>(10), static_cast<quint32>(100)); // 第一个数是两位数
-            b = QRandomGenerator::global()->bounded(static_cast<quint32>(10), static_cast<quint32>(100)); // 第二个数是两位数
-        }
-        else {
-            // 一级难度：都是单位数
-            a = QRandomGenerator::global()->bounded(static_cast<quint32>(1), static_cast<quint32>(10));
-            b = QRandomGenerator::global()->bounded(static_cast<quint32>(1), static_cast<quint32>(10));
-        }
+        do {
+            if (difficulty >= 2) {
+                // 二级和三级难度：至少有两个两位数
+                a = QRandomGenerator::global()->bounded(static_cast<quint32>(10), static_cast<quint32>(100)); // 第一个数是两位数
+                b = QRandomGenerator::global()->bounded(static_cast<quint32>(10), static_cast<quint32>(100)); // 第二个数是两位数
+            }
+            else {
+                // 一级难度：都是单位数
+                a = QRandomGenerator::global()->bounded(static_cast<quint32>(1), static_cast<quint32>(10));
+                b = QRandomGenerator::global()->bounded(static_cast<quint32>(1), static_cast<quint32>(10));
+            }
 
-        // 随机选择 + 或 -
-        bool add = QRandomGenerator::global()->bounded(static_cast<quint32>(2)) == 0;
-        if (add) {
-            // 加法结果 <= 9
-            while (a + b > 9) {
-                if (difficulty >= 2) {
-                    // 重新生成，保持两位数的要求
-                    a = QRandomGenerator::global()->bounded(static_cast<quint32>(10), static_cast<quint32>(20));
-                    b = QRandomGenerator::global()->bounded(static_cast<quint32>(10), static_cast<quint32>(10 - a + 10));
-                    if (b >= 100) b = QRandomGenerator::global()->bounded(static_cast<quint32>(10), static_cast<quint32>(20));
-                }
-                else {
-                    a = QRandomGenerator::global()->bounded(static_cast<quint32>(1), static_cast<quint32>(10));
-                    b = QRandomGenerator::global()->bounded(static_cast<quint32>(1), static_cast<quint32>(10));
-                }
-
-                // 如果无法满足条件，切换到减法
-                if (a + b > 9) {
-                    add = false;
+            // 随机选择 + 或 -
+            bool add = QRandomGenerator::global()->bounded(static_cast<quint32>(2)) == 0;
+            if (add) {
+                // 加法结果 <= 9
+                if (a + b <= 9) {
+                    root = new Node('+', new Node(a), new Node(b));
+                    val = a + b;
                     break;
                 }
             }
-
-            if (add) {
-                root = new Node('+', new Node(a), new Node(b));
-                val = a + b;
-            }
-        }
-
-        if (!add) {
-            // 减法结果 >= 0 且 <= 9
-            if (a < b) std::swap(a, b);
-            while (a - b > 9) {
-                if (difficulty >= 2) {
-                    a = QRandomGenerator::global()->bounded(static_cast<quint32>(10), static_cast<quint32>(20));
-                    b = QRandomGenerator::global()->bounded(static_cast<quint32>(10), static_cast<quint32>(a + 1));
+            else {
+                // 减法结果 >= 0 且 <= 9
+                if (a >= b && a - b <= 9) {
+                    root = new Node('-', new Node(a), new Node(b));
+                    val = a - b;
+                    break;
                 }
-                else {
-                    a = QRandomGenerator::global()->bounded(static_cast<quint32>(1), static_cast<quint32>(10));
-                    b = QRandomGenerator::global()->bounded(static_cast<quint32>(1), static_cast<quint32>(a + 1));
+                else if (b > a && b - a <= 9) {
+                    root = new Node('-', new Node(b), new Node(a));
+                    val = b - a;
+                    break;
                 }
             }
-            root = new Node('-', new Node(a), new Node(b));
-            val = a - b;
-        }
+        } while (true); // 持续尝试直到生成有效表达式
     }
 
     QString expr;
@@ -676,10 +814,14 @@ void MathGame::generateEquation()
 
 void MathGame::showResults()
 {
-    // 禁用数字按钮
+    // 禁用数字按钮和键盘导航
+    keyboardNavigationEnabled = false;
     for (int i = 0; i <= 9; i++) {
         QPushButton* btn = findChild<QPushButton*>(QString("numBtn%1").arg(i));
-        if (btn) btn->setEnabled(false);
+        if (btn) {
+            btn->setEnabled(false);
+            btn->setStyleSheet("background-color: white; border-radius: 10px;");
+        }
     }
 
     // 计算正确答题的平均时间
@@ -782,7 +924,7 @@ double MathGame::calculateAverageCorrectTime()
 // 获取Excel文件路径
 QString MathGame::getExcelFilePath()
 {
-    // 使用自定义路径 D:\SubEEG
+    // 自定义路径 D:\SubEEG
     QDir dir("D:/SubEEG");
 
     // 创建目录（如果不存在）

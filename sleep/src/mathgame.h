@@ -12,6 +12,7 @@
 #include <QStack>
 #include <QDateTime>
 #include <QElapsedTimer>
+#include <QKeyEvent>
 #include <cmath>
 
 namespace Ui {
@@ -132,6 +133,9 @@ public:
 signals:
     void tagSent(const QString& tag);  // 发送标签信号
 
+protected:
+    void keyPressEvent(QKeyEvent* event) override;  // 新增：键盘事件处理
+
 private slots:
     void updateGameTimer();
     void updateQuestionTimer();
@@ -151,10 +155,16 @@ private:
     int countTreeNodes(Node* node);
     bool hasDoubleDigit(Node* node);  // 检查是否包含两位数
     void ensureDoubleDigit(Node* node);  // 确保包含两位数
-    int countDoubleDigits(Node* node);  // 新增：统计两位数的数量
-    void ensureTwoDoubleDigits(Node* node);  // 新增：确保至少有两个两位数
-    bool hasThreeDigit(Node* node);  // 新增：检查是否包含三位数
+    int countDoubleDigits(Node* node);  // 统计两位数的数量
+    void ensureTwoDoubleDigits(Node* node);  // 确保至少有两个两位数
+    bool hasThreeDigit(Node* node);  // 检查是否包含三位数
     int generateNumber(int difficulty);  // 根据难度生成数字
+
+    // 新增：键盘导航相关函数
+    void updateButtonFocus();  // 更新按钮焦点显示
+    void moveToNextButton();   // 移动到下一个按钮
+    void moveToPrevButton();   // 移动到上一个按钮
+    void selectCurrentButton(); // 选择当前按钮
 
     // 数据保存相关函数
     void saveExperimentData();
@@ -175,7 +185,12 @@ private:
     int correctAnswers;     // 正确答案数量
     double accuracy;        // 准确率
 
-    // 新增：题目记录相关
+    // 键盘导航相关变量
+    int currentButtonIndex; // 当前选中的按钮索引 (1-9对应1-9，0对应数字0)
+    QList<QPushButton*> numberButtons; // 数字按钮列表，按1-9-0顺序排列
+    bool keyboardNavigationEnabled; // 键盘导航是否启用
+
+    // 题目记录相关
     QList<QuestionRecord> questionRecords;  // 所有题目记录
     QElapsedTimer questionElapsedTimer;     // 单题计时器
     QDateTime gameStartTime;                // 游戏开始时间
