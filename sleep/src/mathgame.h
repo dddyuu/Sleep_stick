@@ -66,7 +66,7 @@ struct Node {
             return true;
         case '*': out = l_val * r_val; return true;
         case '/':
-            if (r_val == 0 || l_val % r_val != 0) return false;
+            if (r_val == 0 || l_val % r_val != 0 || (l_val == r_val)) return false;
             out = l_val / r_val;
             return true;
         }
@@ -149,9 +149,12 @@ private:
     void adjustTreeValue(Node* node, int newValue);
     void swapTreeValues(Node* a, Node* b);
     int countTreeNodes(Node* node);
-    bool hasDoubleDigit(Node* node);  // 新增：检查是否包含两位数
-    void ensureDoubleDigit(Node* node);  // 新增：确保包含两位数
-    int generateNumber(int difficulty);  // 新增：根据难度生成数字
+    bool hasDoubleDigit(Node* node);  // 检查是否包含两位数
+    void ensureDoubleDigit(Node* node);  // 确保包含两位数
+    int countDoubleDigits(Node* node);  // 新增：统计两位数的数量
+    void ensureTwoDoubleDigits(Node* node);  // 新增：确保至少有两个两位数
+    bool hasThreeDigit(Node* node);  // 新增：检查是否包含三位数
+    int generateNumber(int difficulty);  // 根据难度生成数字
 
     // 数据保存相关函数
     void saveExperimentData();

@@ -290,7 +290,7 @@ void MathGame::newQuestion()
     questionTimer->start(150); // 每150ms更新一次进度条 (15秒总时间)
 }
 
-// 新增：根据难度生成数字
+// 根据难度生成数字
 int MathGame::generateNumber(int difficulty) {
     switch (difficulty) {
     case 1:
@@ -298,20 +298,14 @@ int MathGame::generateNumber(int difficulty) {
         return QRandomGenerator::global()->bounded(static_cast<quint32>(1), static_cast<quint32>(10));
     case 2:
     case 3:
-        // 二级和三级难度：生成1-99的数字（包含两位数，不超过两位数）
-        // 70%概率生成两位数(10-99)，30%概率生成单位数(1-9)
-        if (QRandomGenerator::global()->bounded(static_cast<quint32>(100)) < 70) {
-            return QRandomGenerator::global()->bounded(static_cast<quint32>(10), static_cast<quint32>(100)); // 10-99
-        }
-        else {
-            return QRandomGenerator::global()->bounded(static_cast<quint32>(1), static_cast<quint32>(10)); // 1-9
-        }
+        // 二级和三级难度：生成1-99的数字（不超过两位数）
+        return QRandomGenerator::global()->bounded(static_cast<quint32>(1), static_cast<quint32>(100));
     default:
         return QRandomGenerator::global()->bounded(static_cast<quint32>(1), static_cast<quint32>(10));
     }
 }
 
-// 新增：检查树中是否包含两位数
+// 检查树中是否包含两位数
 bool MathGame::hasDoubleDigit(Node* node) {
     if (!node) return false;
 
@@ -322,7 +316,29 @@ bool MathGame::hasDoubleDigit(Node* node) {
     return hasDoubleDigit(node->left) || hasDoubleDigit(node->right);
 }
 
-// 新增：确保树中至少包含一个两位数
+// 统计树中两位数的数量
+int MathGame::countDoubleDigits(Node* node) {
+    if (!node) return 0;
+
+    if (node->type == Node::Number) {
+        return (node->value >= 10 && node->value <= 99) ? 1 : 0;
+    }
+
+    return countDoubleDigits(node->left) + countDoubleDigits(node->right);
+}
+
+// 检查树中是否包含三位数
+bool MathGame::hasThreeDigit(Node* node) {
+    if (!node) return false;
+
+    if (node->type == Node::Number) {
+        return node->value >= 100;
+    }
+
+    return hasThreeDigit(node->left) || hasThreeDigit(node->right);
+}
+
+// 确保树中至少包含一个两位数
 void MathGame::ensureDoubleDigit(Node* node) {
     if (!node) return;
 
@@ -346,6 +362,50 @@ void MathGame::ensureDoubleDigit(Node* node) {
         size_t randomIndex = QRandomGenerator::global()->bounded(static_cast<quint32>(numberNodes.size()));
         Node* selectedNode = numberNodes[randomIndex];
         selectedNode->value = QRandomGenerator::global()->bounded(static_cast<quint32>(10), static_cast<quint32>(100)); // 10-99
+    }
+}
+
+// 确保树中至少包含两个两位数
+void MathGame::ensureTwoDoubleDigits(Node* node) {
+    if (!node) return;
+
+    // 收集所有数字节点
+    std::vector<Node*> numberNodes;
+    std::function<void(Node*)> collectNumbers = [&](Node* n) {
+        if (!n) return;
+        if (n->type == Node::Number) {
+            numberNodes.push_back(n);
+        }
+        else {
+            collectNumbers(n->left);
+            collectNumbers(n->right);
+        }
+        };
+
+    collectNumbers(node);
+
+    if (numberNodes.size() >= 2) {
+        // 统计当前两位数的数量
+        int currentDoubleDigits = countDoubleDigits(node);
+        int needed = 2 - currentDoubleDigits;
+
+        if (needed > 0) {
+            // 收集所有非两位数的数字节点
+            std::vector<Node*> singleDigitNodes;
+            for (Node* n : numberNodes) {
+                if (n->value < 10 || n->value > 99) {
+                    singleDigitNodes.push_back(n);
+                }
+            }
+
+            // 随机选择节点转换为两位数
+            std::shuffle(singleDigitNodes.begin(), singleDigitNodes.end(),
+                std::default_random_engine(QRandomGenerator::global()->generate()));
+
+            for (int i = 0; i < needed && i < static_cast<int>(singleDigitNodes.size()); i++) {
+                singleDigitNodes[i]->value = QRandomGenerator::global()->bounded(static_cast<quint32>(10), static_cast<quint32>(100)); // 10-99
+            }
+        }
     }
 }
 
@@ -395,18 +455,21 @@ Node* MathGame::buildTree(int numCount, int minPrecedence) {
         int r_val;
         if (!right->evaluate(r_val)) r_val = 1;
 
-        // 确保除数有效
+        // 确保除数有效且不等于被除数
         if (r_val == 0) {
-            adjustTreeValue(right, QRandomGenerator::global()->bounded(static_cast<quint32>(1), static_cast<quint32>(10)));
+            adjustTreeValue(right, QRandomGenerator::global()->bounded(static_cast<quint32>(2), static_cast<quint32>(10)));
             right->evaluate(r_val); // 重新获取值
         }
 
         int l_val;
-        if (!left->evaluate(l_val)) l_val = r_val;
+        if (!left->evaluate(l_val)) l_val = r_val * 2;
 
-        // 调整左子树使其可整除
-        if (l_val % r_val != 0) {
-            int factor = QRandomGenerator::global()->bounded(static_cast<quint32>(1), static_cast<quint32>(5));
+        // 调整左子树使其可整除，并确保不等于除数
+        if (l_val % r_val != 0 || l_val == r_val) {
+            int factor;
+            do {
+                factor = QRandomGenerator::global()->bounded(static_cast<quint32>(2), static_cast<quint32>(10));
+            } while (factor == 1); // 确保因子不为1，这样结果就不会是1
             adjustTreeValue(left, r_val * factor);
         }
     }
@@ -473,7 +536,7 @@ int MathGame::countTreeNodes(Node* node) {
 }
 
 QString MathGame::generateExpression(int count) {
-    const int MAX_ATTEMPTS = 100;
+    const int MAX_ATTEMPTS = 200; // 增加尝试次数
     Node* root = nullptr;
     int val = -1;
 
@@ -482,9 +545,19 @@ QString MathGame::generateExpression(int count) {
             delete root;
             root = buildTree(count, 1); // 最顶层只能是加减
 
-            // 对于二级和三级难度，确保至少包含一个两位数
-            if (difficulty >= 2 && !hasDoubleDigit(root)) {
-                ensureDoubleDigit(root);
+            // 对于二级和三级难度，确保至少包含两个两位数且没有三位数
+            if (difficulty >= 2) {
+                if (!hasThreeDigit(root) && countDoubleDigits(root) >= 2) {
+                    // 已经满足条件
+                }
+                else if (!hasThreeDigit(root)) {
+                    // 没有三位数但两位数不够，补充两位数
+                    ensureTwoDoubleDigits(root);
+                }
+                else {
+                    // 有三位数，重新生成
+                    continue;
+                }
             }
 
             if (root->evaluate(val) && val >= 0 && val <= 9)
@@ -495,9 +568,15 @@ QString MathGame::generateExpression(int count) {
             // 后备方案：生成简单表达式
             int a, b;
             if (difficulty >= 2) {
-                // 确保至少有一个两位数
+                // 确保至少有两个两位数
                 a = QRandomGenerator::global()->bounded(static_cast<quint32>(10), static_cast<quint32>(100)); // 10-99
-                b = QRandomGenerator::global()->bounded(static_cast<quint32>(1), static_cast<quint32>(a + 1)); // 确保减法结果非负
+                b = QRandomGenerator::global()->bounded(static_cast<quint32>(10), static_cast<quint32>(100)); // 10-99
+                // 确保减法结果在0-9范围内
+                if (a < b) std::swap(a, b);
+                while (a - b > 9) {
+                    a = QRandomGenerator::global()->bounded(static_cast<quint32>(10), static_cast<quint32>(20));
+                    b = QRandomGenerator::global()->bounded(static_cast<quint32>(10), static_cast<quint32>(a + 1));
+                }
             }
             else {
                 a = QRandomGenerator::global()->bounded(static_cast<quint32>(1), static_cast<quint32>(10));
@@ -508,17 +587,12 @@ QString MathGame::generateExpression(int count) {
         }
     }
     else {
+        // 两个数的情况
         int a, b;
         if (difficulty >= 2) {
-            // 二级和三级难度：至少有一个两位数
-            if (QRandomGenerator::global()->bounded(static_cast<quint32>(2)) == 0) {
-                a = QRandomGenerator::global()->bounded(static_cast<quint32>(10), static_cast<quint32>(100)); // 第一个数是两位数
-                b = QRandomGenerator::global()->bounded(static_cast<quint32>(1), static_cast<quint32>(10));   // 第二个数是单位数
-            }
-            else {
-                a = QRandomGenerator::global()->bounded(static_cast<quint32>(1), static_cast<quint32>(10));   // 第一个数是单位数
-                b = QRandomGenerator::global()->bounded(static_cast<quint32>(10), static_cast<quint32>(100)); // 第二个数是两位数
-            }
+            // 二级和三级难度：至少有两个两位数
+            a = QRandomGenerator::global()->bounded(static_cast<quint32>(10), static_cast<quint32>(100)); // 第一个数是两位数
+            b = QRandomGenerator::global()->bounded(static_cast<quint32>(10), static_cast<quint32>(100)); // 第二个数是两位数
         }
         else {
             // 一级难度：都是单位数
@@ -532,27 +606,10 @@ QString MathGame::generateExpression(int count) {
             // 加法结果 <= 9
             while (a + b > 9) {
                 if (difficulty >= 2) {
-                    // 重新生成，保持至少一个两位数的要求
-                    if (QRandomGenerator::global()->bounded(static_cast<quint32>(2)) == 0) {
-                        int maxA = std::min(100, 10 - b);
-                        if (maxA > 10) {
-                            a = QRandomGenerator::global()->bounded(static_cast<quint32>(10), static_cast<quint32>(maxA));
-                        }
-                        else {
-                            a = QRandomGenerator::global()->bounded(static_cast<quint32>(1), static_cast<quint32>(10));
-                        }
-                        b = QRandomGenerator::global()->bounded(static_cast<quint32>(1), static_cast<quint32>(10));
-                    }
-                    else {
-                        a = QRandomGenerator::global()->bounded(static_cast<quint32>(1), static_cast<quint32>(10));
-                        int maxB = std::min(100, 10 - a);
-                        if (maxB > 10) {
-                            b = QRandomGenerator::global()->bounded(static_cast<quint32>(10), static_cast<quint32>(maxB));
-                        }
-                        else {
-                            b = QRandomGenerator::global()->bounded(static_cast<quint32>(1), static_cast<quint32>(10));
-                        }
-                    }
+                    // 重新生成，保持两位数的要求
+                    a = QRandomGenerator::global()->bounded(static_cast<quint32>(10), static_cast<quint32>(20));
+                    b = QRandomGenerator::global()->bounded(static_cast<quint32>(10), static_cast<quint32>(10 - a + 10));
+                    if (b >= 100) b = QRandomGenerator::global()->bounded(static_cast<quint32>(10), static_cast<quint32>(20));
                 }
                 else {
                     a = QRandomGenerator::global()->bounded(static_cast<quint32>(1), static_cast<quint32>(10));
@@ -573,8 +630,18 @@ QString MathGame::generateExpression(int count) {
         }
 
         if (!add) {
-            // 减法结果 >= 0
+            // 减法结果 >= 0 且 <= 9
             if (a < b) std::swap(a, b);
+            while (a - b > 9) {
+                if (difficulty >= 2) {
+                    a = QRandomGenerator::global()->bounded(static_cast<quint32>(10), static_cast<quint32>(20));
+                    b = QRandomGenerator::global()->bounded(static_cast<quint32>(10), static_cast<quint32>(a + 1));
+                }
+                else {
+                    a = QRandomGenerator::global()->bounded(static_cast<quint32>(1), static_cast<quint32>(10));
+                    b = QRandomGenerator::global()->bounded(static_cast<quint32>(1), static_cast<quint32>(a + 1));
+                }
+            }
             root = new Node('-', new Node(a), new Node(b));
             val = a - b;
         }
@@ -636,7 +703,7 @@ void MathGame::showResults()
     ui->timeBar->setVisible(false);
 }
 
-// 新增：保存实验数据到Excel(CSV)文件
+// 保存实验数据到Excel(CSV)文件
 void MathGame::saveExperimentData()
 {
     QString filePath = getExcelFilePath();
@@ -687,7 +754,7 @@ void MathGame::saveExperimentData()
         QString("实验数据已成功保存到:\n%1").arg(filePath));
 }
 
-// 新增：计算正确答题的平均时间（排除错误和超时）
+// 计算正确答题的平均时间（排除错误和超时）
 double MathGame::calculateAverageCorrectTime()
 {
     if (correctAnswers == 0) {
@@ -712,7 +779,7 @@ double MathGame::calculateAverageCorrectTime()
     return static_cast<double>(totalCorrectTime) / correctCount / 1000.0;
 }
 
-// 新增：获取Excel文件路径
+// 获取Excel文件路径
 QString MathGame::getExcelFilePath()
 {
     // 使用自定义路径 D:\SubEEG
