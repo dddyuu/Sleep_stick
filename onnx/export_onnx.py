@@ -1,7 +1,7 @@
 
 import numpy as np
-from pytsk.gradient_descent import AntecedentGMF
-from utils import TSKFS
+# from pytsk.gradient_descent import AntecedentGMF
+# from utils import TSKFS
 
 
 #pkl转化onnx
