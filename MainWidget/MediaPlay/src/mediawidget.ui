@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MediaWidget</class>
+ <widget class="QWidget" name="MediaWidget">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>400</width>
+    <height>300</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Form</string>
+  </property>
+  <layout class="QHBoxLayout" name="horizontalLayout" stretch="3,1">
+   <property name="spacing">
+    <number>0</number>
+   </property>
+   <property name="leftMargin">
+    <number>0</number>
+   </property>
+   <property name="topMargin">
+    <number>0</number>
+   </property>
+   <property name="rightMargin">
+    <number>0</number>
+   </property>
+   <property name="bottomMargin">
+    <number>0</number>
+   </property>
+   <item>
+    <layout class="QVBoxLayout" name="verticalLayout" stretch="8,1">
+     <item>
+      <widget class="MediaPlay" name="player" native="true"/>
+     </item>
+     <item>
+      <widget class="ToolButton" name="play_button" native="true"/>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <widget class="PlayList" name="playlist" native="true"/>
+   </item>
+  </layout>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>PlayList</class>
+   <extends>QWidget</extends>
+   <header location="global">playlist.h</header>
+   <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>ToolButton</class>
+   <extends>QWidget</extends>
+   <header>toolbutton.h</header>
+   <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>MediaPlay</class>
+   <extends>QWidget</extends>
+   <header>mediaplay.h</header>
+   <container>1</container>
+  </customwidget>
+ </customwidgets>
+ <resources/>
+ <connections/>
+</ui>

@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>BCIMonitor</class>
+ <widget class="QMainWindow" name="BCIMonitor">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>800</width>
+    <height>600</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>BCIMonitor</string>
+  </property>
+  <property name="styleSheet">
+   <string notr="true">*{
+	color:white;
+	background-color:#25262F;
+}
+
+QMenuBar::item:selected{
+	background-color: #3AD5FE;
+}
+
+QMenu::item:selected{
+	background-color: #3AD5FE;
+}</string>
+  </property>
+  <widget class="QWidget" name="centralwidget"/>
+  <action name="actionNew_Workspace">
+   <property name="text">
+    <string>New Workspace</string>
+   </property>
+  </action>
+  <action name="actionOpen_Workspace">
+   <property name="text">
+    <string>Open Workspace</string>
+   </property>
+  </action>
+  <action name="actionEdit_Workspace">
+   <property name="text">
+    <string>Edit Workspace</string>
+   </property>
+  </action>
+  <action name="actionExit">
+   <property name="text">
+    <string>Exit</string>
+   </property>
+  </action>
+  <action name="actionConnect_Amplifier">
+   <property name="text">
+    <string>Connect Amplifier</string>
+   </property>
+  </action>
+  <action name="actionStatus_bar">
+   <property name="text">
+    <string>Status bar</string>
+   </property>
+  </action>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

@@ -1,0 +1,6 @@
+<RCC>
+    <qresource prefix="/amplifier/img">
+        <file>append.png</file>
+        <file>remove.png</file>
+    </qresource>
+</RCC>

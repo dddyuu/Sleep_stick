@@ -1,0 +1,12 @@
+/build
+/build-SelfAmplifer-Desktop_Qt_5_14_2_MSVC2017_64bit-Debug
+/SelfAmplifer/.vs
+/SelfAmplifer/out
+/SelfAmplifer/build
+/.vs
+/out
+/LocalAmplifer/SelfAmplifer/.vs
+/LocalAmplifer/SelfAmplifer/out
+*.user
+onnx/.idea/workspace.xml
+/onnx/.idea
