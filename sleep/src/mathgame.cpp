@@ -23,25 +23,40 @@
 MathGame::MathGame(QWidget* parent) :
     QWidget(parent),
     ui(new Ui::MathGame),
-    difficulty(1),
+    difficulty(0), // 初始化为0，预设实验时会自动设置
     timeLeft(100),
-    totalTime(120), // 2分钟
+    totalTime(120), // 默认2分钟
+    customExperimentTime(120), // 默认自定义时间也是2分钟
     answer(0),
     questionsAnswered(0),
     correctAnswers(0),
     accuracy(0.0),
     currentButtonIndex(0), // 默认选中按钮0
-    keyboardNavigationEnabled(false)
+    keyboardNavigationEnabled(false),
+    experimentMode(ExperimentMode::Single), // 默认单一模式
+    currentPresetStageIndex(0),
+    presetStageTimeLeft(0),
+    presetDuration(60), // 默认每个难度60秒
+    isPresetExperiment(false),
+    currentStageQuestions(0),
+    currentStageCorrect(0)
 {
     ui->setupUi(this);
 
     // 设置初始状态
-    ui->gameTimeDisplay->display(totalTime);
+    updateTimeDisplay();
     ui->timeBar->setVisible(false);
-    ui->equationLabel->setText("选择难度并开始实验");
+    ui->equationLabel->setText("选择实验模式并开始实验");
     ui->resultLabel->setText("");
     ui->accuracyLabel->setText("准确率: 0%");
     ui->questionsLabel->setText("已答题: 0");
+    ui->currentDifficultyLabel->setVisible(false);
+
+    // 设置时间控件
+    setupTimeSettings();
+
+    // 设置模式按钮
+    setupModeButtons();
 
     // 初始化计时器
     gameTimer = new QTimer(this);
@@ -49,6 +64,9 @@ MathGame::MathGame(QWidget* parent) :
 
     questionTimer = new QTimer(this);
     connect(questionTimer, &QTimer::timeout, this, &MathGame::updateQuestionTimer);
+
+    presetStageTimer = new QTimer(this);
+    connect(presetStageTimer, &QTimer::timeout, this, &MathGame::updatePresetStageTimer);
 
     // 设置难度选择按钮
     difficultyGroup = new QButtonGroup(this);
@@ -89,8 +107,15 @@ MathGame::MathGame(QWidget* parent) :
     // 重置按钮
     connect(ui->resetBtn, &QPushButton::clicked, this, &MathGame::resetGame);
 
+    // 预设模式相关控件连接
+    connect(ui->presetDurationSpinBox, QOverload<int>::of(&QSpinBox::valueChanged),
+        [this](int value) { presetDuration = value; });
+
     // 设置焦点策略，使窗口能够接收键盘事件
     setFocusPolicy(Qt::StrongFocus);
+
+    // 初始化UI状态
+    updateModeUI();
 }
 
 MathGame::~MathGame()
@@ -98,8 +123,182 @@ MathGame::~MathGame()
     delete ui;
     delete gameTimer;
     delete questionTimer;
+    delete presetStageTimer;
     delete difficultyGroup;
     delete numberGroup;
+    delete modeGroup;
+    delete presetOrderGroup;
+}
+
+void MathGame::setupModeButtons()
+{
+    // 设置模式按钮组 - 使用独立的ID
+    modeGroup = new QButtonGroup(this);
+    modeGroup->addButton(ui->singleModeBtn, 0);  // 单一模式使用ID 0
+    modeGroup->addButton(ui->presetModeBtn, 1);  // 预设模式使用ID 1
+    connect(modeGroup, QOverload<int>::of(&QButtonGroup::buttonClicked),
+        this, &MathGame::onModeChanged);
+
+    // 设置预设顺序按钮组
+    presetOrderGroup = new QButtonGroup(this);
+    presetOrderGroup->addButton(ui->lowToHighBtn, static_cast<int>(ExperimentMode::PresetLowToHigh));
+    presetOrderGroup->addButton(ui->highToLowBtn, static_cast<int>(ExperimentMode::PresetHighToLow));
+    connect(presetOrderGroup, QOverload<int>::of(&QButtonGroup::buttonClicked),
+        this, &MathGame::onPresetOrderSelected);
+
+    // 设置初始状态
+    ui->singleModeBtn->setChecked(true);
+    ui->lowToHighBtn->setChecked(true);
+
+    // 调试输出确认按钮组设置
+    qDebug() << "模式按钮初始化完成";
+    qDebug() << "lowToHighBtn ID:" << static_cast<int>(ExperimentMode::PresetLowToHigh);
+    qDebug() << "highToLowBtn ID:" << static_cast<int>(ExperimentMode::PresetHighToLow);
+    qDebug() << "当前预设顺序选中按钮ID:" << presetOrderGroup->checkedId();
+}
+
+void MathGame::onModeChanged()
+{
+    int buttonId = modeGroup->checkedId();
+    qDebug() << "模式按钮点击，buttonId:" << buttonId;
+
+    if (buttonId == 0) {
+        // 单一模式
+        experimentMode = ExperimentMode::Single;
+        qDebug() << "切换到单一模式";
+    }
+    else if (buttonId == 1) {
+        // 预设模式 - 获取当前选中的预设顺序
+        int orderButtonId = presetOrderGroup->checkedId();
+        qDebug() << "切换到预设模式，当前顺序buttonId:" << orderButtonId;
+
+        if (orderButtonId == static_cast<int>(ExperimentMode::PresetLowToHigh)) {
+            experimentMode = ExperimentMode::PresetLowToHigh;
+            qDebug() << "设置为低到高模式";
+        }
+        else if (orderButtonId == static_cast<int>(ExperimentMode::PresetHighToLow)) {
+            experimentMode = ExperimentMode::PresetHighToLow;
+            qDebug() << "设置为高到低模式";
+        }
+        else {
+            // 默认设置为低到高
+            experimentMode = ExperimentMode::PresetLowToHigh;
+            ui->lowToHighBtn->setChecked(true);
+            qDebug() << "默认设置为低到高模式";
+        }
+    }
+
+    // 更新按钮样式
+    ui->singleModeBtn->setStyleSheet(experimentMode == ExperimentMode::Single ?
+        "background-color: #2196F3; color: white; border-radius: 10px;" :
+        "background-color: #9E9E9E; color: white; border-radius: 10px;");
+
+    ui->presetModeBtn->setStyleSheet(experimentMode != ExperimentMode::Single ?
+        "background-color: #2196F3; color: white; border-radius: 10px;" :
+        "background-color: #9E9E9E; color: white; border-radius: 10px;");
+
+    updateModeUI();
+    qDebug() << "最终实验模式设置为:" << static_cast<int>(experimentMode);
+}
+
+void MathGame::onPresetOrderSelected()
+{
+    int buttonId = presetOrderGroup->checkedId();
+    qDebug() << "预设顺序按钮点击，buttonId:" << buttonId;
+
+    // 添加调试信息
+    qDebug() << "lowToHighBtn是否选中:" << ui->lowToHighBtn->isChecked();
+    qDebug() << "highToLowBtn是否选中:" << ui->highToLowBtn->isChecked();
+
+    // 检查buttonId的有效性
+    if (buttonId == -1) {
+        qDebug() << "错误：没有预设顺序按钮被选中";
+        // 强制设置为低到高模式
+        buttonId = static_cast<int>(ExperimentMode::PresetLowToHigh);
+        ui->lowToHighBtn->setChecked(true);
+        qDebug() << "强制设置为低到高模式，buttonId:" << buttonId;
+    }
+
+    // 首先自动切换到预设模式
+    ui->presetModeBtn->setChecked(true);
+
+    // 更新实验模式
+    experimentMode = static_cast<ExperimentMode>(buttonId);
+    qDebug() << "自动切换到预设模式，实验模式设置为:" << static_cast<int>(experimentMode);
+
+    // 更新按钮样式
+    ui->singleModeBtn->setStyleSheet("background-color: #9E9E9E; color: white; border-radius: 10px;");
+    ui->presetModeBtn->setStyleSheet("background-color: #2196F3; color: white; border-radius: 10px;");
+
+    // 更新UI
+    updateModeUI();
+}
+
+void MathGame::updateModeUI()
+{
+    bool isSingleMode = (experimentMode == ExperimentMode::Single);
+    ui->singleModeWidget->setVisible(isSingleMode);
+    ui->presetModeWidget->setVisible(!isSingleMode);
+
+    // 更新提示文本
+    if (isSingleMode) {
+        ui->equationLabel->setText("选择难度、设置时间并开始实验");
+    }
+    else {
+        ui->equationLabel->setText("选择预设实验模式并开始实验");
+    }
+
+    qDebug() << "UI更新完成，单一模式:" << isSingleMode << "当前实验模式:" << static_cast<int>(experimentMode);
+}
+
+void MathGame::setupTimeSettings()
+{
+    // 连接时间设置控件的信号
+    connect(ui->timeSpinBox, QOverload<int>::of(&QSpinBox::valueChanged),
+        this, &MathGame::onTimeChanged);
+
+    // 设置初始值
+    ui->timeSpinBox->setValue(customExperimentTime);
+    ui->presetDurationSpinBox->setValue(presetDuration);
+}
+
+void MathGame::onTimeChanged(int value)
+{
+    customExperimentTime = value;
+    updateTimeDisplay();
+    qDebug() << "实验时长设置为:" << customExperimentTime << "秒";
+}
+
+void MathGame::updateTimeDisplay()
+{
+    if (isPresetExperiment) {
+        ui->gameTimeDisplay->display(presetStageTimeLeft);
+    }
+    else {
+        ui->gameTimeDisplay->display(customExperimentTime);
+    }
+}
+
+void MathGame::updateCurrentDifficultyDisplay()
+{
+    QString difficultyText;
+    switch (difficulty) {
+    case 1: difficultyText = "当前难度: 一级"; break;
+    case 2: difficultyText = "当前难度: 二级"; break;
+    case 3: difficultyText = "当前难度: 三级"; break;
+    default: difficultyText = "当前难度: --"; break;
+    }
+    ui->currentDifficultyLabel->setText(difficultyText);
+
+    // 根据难度设置不同颜色
+    QString styleSheet;
+    switch (difficulty) {
+    case 1: styleSheet = "background-color: #4CAF50; color: white; border-radius: 5px; padding: 5px;"; break;
+    case 2: styleSheet = "background-color: #2196F3; color: white; border-radius: 5px; padding: 5px;"; break;
+    case 3: styleSheet = "background-color: #FF9800; color: white; border-radius: 5px; padding: 5px;"; break;
+    default: styleSheet = "background-color: #9E9E9E; color: white; border-radius: 5px; padding: 5px;"; break;
+    }
+    ui->currentDifficultyLabel->setStyleSheet(styleSheet);
 }
 
 void MathGame::keyPressEvent(QKeyEvent* event)
@@ -218,40 +417,208 @@ void MathGame::selectCurrentButton()
 
 void MathGame::difficultySelected(int level)
 {
-    difficulty = level;
-    QString text;
-    switch (level) {
-    case 1: text = "一级难度: 两个数的加减法"; break;
-    case 2: text = "二级难度: 三个数的加减乘除"; break;
-    case 3: text = "三级难度: 四个数的加减乘除"; break;
+    // 只在单一模式下处理难度选择
+    if (experimentMode == ExperimentMode::Single) {
+        difficulty = level;
+        QString text;
+        switch (level) {
+        case 1: text = "一级难度: 两个数的加减法"; break;
+        case 2: text = "二级难度: 三个数的加减乘除"; break;
+        case 3: text = "三级难度: 四个数的加减乘除"; break;
+        }
+        ui->difficultyLabel->setText(text);
+        qDebug() << "单一模式选择难度:" << level;
     }
-    ui->difficultyLabel->setText(text);
+}
+
+void MathGame::initializePresetStages()
+{
+    presetStages.clear();
+
+    QVector<int> difficulties;
+    if (experimentMode == ExperimentMode::PresetLowToHigh) {
+        difficulties = { 1, 2, 3 }; // 低到高
+    }
+    else if (experimentMode == ExperimentMode::PresetHighToLow) {
+        difficulties = { 3, 2, 1 }; // 高到低
+    }
+    else {
+        qDebug() << "错误：未知的预设实验模式:" << static_cast<int>(experimentMode);
+        return;
+    }
+
+    qDebug() << "初始化预设阶段，模式:" << static_cast<int>(experimentMode) << "难度顺序:" << difficulties;
+
+    for (int diff : difficulties) {
+        PresetStage stage;
+        stage.difficulty = diff;
+        stage.duration = presetDuration;
+        stage.questionsCount = 0;
+        stage.correctCount = 0;
+        presetStages.append(stage);
+    }
+
+    currentPresetStageIndex = 0;
+    if (!presetStages.isEmpty()) {
+        difficulty = presetStages[0].difficulty;
+        presetStageTimeLeft = presetStages[0].duration;
+        qDebug() << "预设第一阶段：难度" << difficulty << "时间" << presetStageTimeLeft;
+    }
+    else {
+        qDebug() << "警告：预设阶段为空！";
+    }
+
+    qDebug() << "初始化预设阶段完成，共" << presetStages.size() << "个阶段，第一阶段难度" << difficulty << "时间" << presetStageTimeLeft;
+}
+
+void MathGame::setupPresetExperiment()
+{
+    qDebug() << "开始设置预设实验，当前模式:" << static_cast<int>(experimentMode);
+
+    isPresetExperiment = true;
+    presetDuration = ui->presetDurationSpinBox->value();
+
+    qDebug() << "预设实验每阶段时长:" << presetDuration << "秒";
+
+    initializePresetStages();
+
+    // 检查是否成功初始化
+    if (presetStages.isEmpty() || difficulty == 0) {
+        qDebug() << "预设实验初始化失败！";
+        isPresetExperiment = false;
+        return;
+    }
+
+    updateCurrentDifficultyDisplay();
+
+    // 计算总实验时间
+    totalTime = presetStages.size() * presetDuration;
+    customExperimentTime = totalTime;
+
+    qDebug() << "预设实验设置完成，总时长:" << totalTime << "秒，每阶段:" << presetDuration << "秒，当前难度:" << difficulty;
+}
+
+void MathGame::switchToNextPresetStage()
+{
+    if (currentPresetStageIndex < presetStages.size()) {
+        // 保存当前阶段统计
+        presetStages[currentPresetStageIndex].questionsCount = currentStageQuestions;
+        presetStages[currentPresetStageIndex].correctCount = currentStageCorrect;
+    }
+
+    currentPresetStageIndex++;
+    if (currentPresetStageIndex >= presetStages.size()) {
+        // 所有阶段完成
+        qDebug() << "所有预设阶段完成";
+        gameTimer->stop();
+        presetStageTimer->stop();
+        questionTimer->stop();
+
+        // 保存预设实验数据
+        savePresetExperimentData();
+
+        showResults();
+        return;
+    }
+
+    // 切换到下一个阶段
+    difficulty = presetStages[currentPresetStageIndex].difficulty;
+    presetStageTimeLeft = presetStages[currentPresetStageIndex].duration;
+    currentStageQuestions = 0;
+    currentStageCorrect = 0;
+
+    updateCurrentDifficultyDisplay();
+
+    // 发送难度切换标签
+    QString switchTag;
+    switch (difficulty) {
+    case 1: switchTag = "41"; break;  // 切换到难度一
+    case 2: switchTag = "42"; break;  // 切换到难度二
+    case 3: switchTag = "43"; break;  // 切换到难度三
+    }
+    emit tagSent(switchTag);
+    qDebug() << "切换到阶段" << currentPresetStageIndex + 1 << "难度" << difficulty << "标签:" << switchTag;
+
+    // 继续下一题
+    newQuestion();
+}
+
+void MathGame::updatePresetStageTimer()
+{
+    presetStageTimeLeft--;
+    updateTimeDisplay();
+
+    if (presetStageTimeLeft <= 0) {
+        qDebug() << "当前阶段时间结束，切换到下一阶段";
+        switchToNextPresetStage();
+    }
 }
 
 void MathGame::startGame()
 {
-    if (difficulty == 0) {
-        QMessageBox::warning(this, "提示", "请先选择难度!");
-        return;
-    }
+    qDebug() << "开始游戏，当前模式:" << static_cast<int>(experimentMode);
 
-    // 发送游戏开始标签
-    QString startTag;
-    switch (difficulty) {
-    case 1: startTag = "11"; break;  // 难度一开始标签
-    case 2: startTag = "21"; break;  // 难度二开始标签
-    case 3: startTag = "31"; break;  // 难度三开始标签
-    default: startTag = "11"; break;
-    }
-    emit tagSent(startTag);
-    qDebug() << "发送游戏开始标签:" << startTag;
+    if (experimentMode == ExperimentMode::Single) {
+        // 单一难度模式需要检查是否选择了难度
+        if (difficulty == 0) {
+            QMessageBox::warning(this, "提示", "请先选择难度!");
+            return;
+        }
 
-    // 重置游戏状态
-    resetGame();
+        // 单一难度模式
+        isPresetExperiment = false;
+        customExperimentTime = ui->timeSpinBox->value();
+
+        // 发送游戏开始标签
+        QString startTag;
+        switch (difficulty) {
+        case 1: startTag = "11"; break;  // 难度一开始标签
+        case 2: startTag = "21"; break;  // 难度二开始标签
+        case 3: startTag = "31"; break;  // 难度三开始标签
+        default: startTag = "11"; break;
+        }
+        emit tagSent(startTag);
+        qDebug() << "发送单一模式游戏开始标签:" << startTag << "实验时长:" << customExperimentTime << "秒";
+
+        // 单一模式：先重置状态再设置
+        resetGameInternal();
+
+        // 设置单一模式的时间
+        totalTime = customExperimentTime;
+    }
+    else {
+        // 预设实验模式：先设置预设数据，再重置其他状态
+        setupPresetExperiment();
+
+        // 检查预设实验是否设置成功
+        if (!isPresetExperiment || difficulty == 0 || presetStages.isEmpty()) {
+            QMessageBox::warning(this, "错误", QString("预设实验初始化失败!\n模式: %1\n难度: %2\n阶段数: %3")
+                .arg(static_cast<int>(experimentMode))
+                .arg(difficulty)
+                .arg(presetStages.size()));
+            return;
+        }
+
+        // 发送预设实验开始标签
+        QString startTag;
+        if (experimentMode == ExperimentMode::PresetLowToHigh) {
+            startTag = "51"; // 低到高预设实验开始
+        }
+        else {
+            startTag = "61"; // 高到低预设实验开始
+        }
+        emit tagSent(startTag);
+        qDebug() << "发送预设实验开始标签:" << startTag;
+
+        // 预设模式：只重置游戏状态，保留预设数据
+        resetGameInternalForPreset();
+    }
 
     // 记录游戏开始时间
     gameStartTime = QDateTime::currentDateTime();
     questionRecords.clear();
+    currentStageQuestions = 0;
+    currentStageCorrect = 0;
 
     // 启用数字按钮和键盘导航
     keyboardNavigationEnabled = true;
@@ -269,13 +636,106 @@ void MathGame::startGame()
     // 显示游戏控件
     ui->timeBar->setVisible(true);
     ui->resetBtn->setVisible(true);
+    ui->currentDifficultyLabel->setVisible(true);
+    updateCurrentDifficultyDisplay();
+
+    // 更新显示
+    updateTimeDisplay();
+    ui->timeBar->setValue(100);
+    ui->accuracyLabel->setText("准确率: 0%");
+    ui->questionsLabel->setText("已答题: 0");
 
     // 设置焦点到主窗口以接收键盘事件
     setFocus();
 
     // 开始计时
-    gameTimer->start(1000); // 每秒更新一次
+    if (isPresetExperiment) {
+        presetStageTimer->start(1000); // 预设实验每秒更新阶段计时器
+        qDebug() << "预设实验开始，第一阶段时间:" << presetStageTimeLeft;
+    }
+    else {
+        gameTimer->start(1000); // 单一模式每秒更新总计时器
+        qDebug() << "单一模式开始，总时间:" << totalTime;
+    }
+
     newQuestion();
+}
+
+// 新增：用于预设实验的内部重置函数，不清空预设数据
+void MathGame::resetGameInternalForPreset()
+{
+    // 停止所有计时器
+    gameTimer->stop();
+    questionTimer->stop();
+    presetStageTimer->stop();
+
+    // 禁用键盘导航
+    keyboardNavigationEnabled = false;
+
+    // 重置游戏统计状态，但保留预设实验数据
+    timeLeft = 100;
+    questionsAnswered = 0;
+    correctAnswers = 0;
+    accuracy = 0.0;
+    currentStageQuestions = 0;
+    currentStageCorrect = 0;
+
+    // 更新显示
+    ui->timeBar->setValue(timeLeft);
+    ui->accuracyLabel->setText("准确率: 0%");
+    ui->questionsLabel->setText("已答题: 0");
+
+    // 禁用数字按钮并清除样式
+    for (int i = 0; i <= 9; i++) {
+        QPushButton* btn = findChild<QPushButton*>(QString("numBtn%1").arg(i));
+        if (btn) {
+            btn->setEnabled(false);
+            btn->setStyleSheet("background-color: white; border-radius: 10px;");
+        }
+    }
+
+    qDebug() << "预设实验内部重置完成，保留难度:" << difficulty << "时间:" << presetStageTimeLeft;
+}
+
+// 新增：用于单一模式的内部重置函数
+void MathGame::resetGameInternal()
+{
+    // 停止所有计时器
+    gameTimer->stop();
+    questionTimer->stop();
+    presetStageTimer->stop();
+
+    // 禁用键盘导航
+    keyboardNavigationEnabled = false;
+
+    // 重置游戏状态
+    timeLeft = 100;
+    questionsAnswered = 0;
+    correctAnswers = 0;
+    accuracy = 0.0;
+    currentStageQuestions = 0;
+    currentStageCorrect = 0;
+
+    // 更新显示
+    ui->timeBar->setValue(timeLeft);
+    ui->accuracyLabel->setText("准确率: 0%");
+    ui->questionsLabel->setText("已答题: 0");
+
+    // 禁用数字按钮并清除样式
+    for (int i = 0; i <= 9; i++) {
+        QPushButton* btn = findChild<QPushButton*>(QString("numBtn%1").arg(i));
+        if (btn) {
+            btn->setEnabled(false);
+            btn->setStyleSheet("background-color: white; border-radius: 10px;");
+        }
+    }
+
+    // 重置实验模式相关
+    isPresetExperiment = false;
+    currentPresetStageIndex = 0;
+    presetStages.clear();
+
+    qDebug() << "单一模式内部重置完成，难度:" << difficulty;
 }
 
 void MathGame::resetGame()
@@ -283,28 +743,36 @@ void MathGame::resetGame()
     // 停止所有计时器
     gameTimer->stop();
     questionTimer->stop();
+    presetStageTimer->stop();
 
     // 禁用键盘导航
     keyboardNavigationEnabled = false;
 
     // 重置游戏状态
-    totalTime = 120;
     timeLeft = 100;
     questionsAnswered = 0;
     correctAnswers = 0;
     accuracy = 0.0;
+    currentStageQuestions = 0;
+    currentStageCorrect = 0;
+
+    // 重置难度到0（用于单一模式检查）
+    if (experimentMode == ExperimentMode::Single) {
+        difficulty = 0;
+    }
 
     // 更新显示
-    ui->gameTimeDisplay->display(totalTime);
+    updateTimeDisplay();
     ui->timeBar->setValue(timeLeft);
     ui->accuracyLabel->setText("准确率: 0%");
     ui->questionsLabel->setText("已答题: 0");
-    ui->equationLabel->setText("");
+    ui->equationLabel->setText("选择实验模式并开始实验");
     ui->resultLabel->setText("");
 
     // 显示难度选择
     ui->difficultyWidget->setVisible(true);
     ui->startBtn->setVisible(true);
+    ui->currentDifficultyLabel->setVisible(false);
 
     // 禁用数字按钮并清除样式
     for (int i = 0; i <= 9; i++) {
@@ -318,6 +786,16 @@ void MathGame::resetGame()
     // 隐藏游戏控件
     ui->timeBar->setVisible(false);
     ui->resetBtn->setVisible(false);
+
+    // 重置实验模式相关
+    isPresetExperiment = false;
+    currentPresetStageIndex = 0;
+    presetStages.clear();
+
+    // 更新UI
+    updateModeUI();
+
+    qDebug() << "完全重置完成";
 }
 
 void MathGame::updateGameTimer()
@@ -368,9 +846,11 @@ void MathGame::updateQuestionTimer()
         record.question = currentQuestion;
         record.answer = answer;
         record.userAnswer = -1; // -1表示超时
+        record.difficulty = difficulty; // 记录难度
         questionRecords.append(record);
 
         questionsAnswered++;
+        currentStageQuestions++;
         updateAccuracy();
 
         QTimer::singleShot(1500, this, &MathGame::newQuestion);
@@ -390,14 +870,17 @@ void MathGame::numberClicked(int num)
     record.question = currentQuestion;
     record.answer = answer;
     record.userAnswer = num;
+    record.difficulty = difficulty; // 记录难度
     questionRecords.append(record);
 
     questionsAnswered++;
+    currentStageQuestions++;
 
     if (num == answer) {
         ui->resultLabel->setText("TRUE");
         ui->resultLabel->setStyleSheet("color: green; background-color: white;");
         correctAnswers++;
+        currentStageCorrect++;
     }
     else {
         ui->resultLabel->setText("FALSE");
@@ -420,7 +903,14 @@ void MathGame::updateAccuracy()
 
 void MathGame::newQuestion()
 {
-    if (totalTime <= 0) {
+    // 检查是否为预设实验且需要切换阶段
+    if (isPresetExperiment && presetStageTimeLeft <= 0) {
+        switchToNextPresetStage();
+        return;
+    }
+
+    // 检查单一模式时间是否结束
+    if (!isPresetExperiment && totalTime <= 0) {
         showResults();
         return;
     }
@@ -827,26 +1317,47 @@ void MathGame::showResults()
     // 计算正确答题的平均时间
     double avgCorrectTime = calculateAverageCorrectTime();
 
-    // 显示结果
-    QString resultText = QString("实验结束!\n"
-        "总答题数: %1\n"
-        "正确答题数: %2\n"
-        "准确率: %3%\n"
-        "正确答题平均时间: %4秒\n"
-        "数据已保存到Excel文件\n"
-        "点击重置按钮重新开始")
-        .arg(questionsAnswered)
-        .arg(correctAnswers)
-        .arg(accuracy, 0, 'f', 1)
-        .arg(avgCorrectTime, 0, 'f', 2);
+    QString resultText;
+    if (isPresetExperiment) {
+        resultText = QString("预设实验结束!\n"
+            "实验模式: %1\n"
+            "每阶段时长: %2秒\n"
+            "总答题数: %3\n"
+            "正确答题数: %4\n"
+            "准确率: %5%\n"
+            "正确答题平均时间: %6秒\n"
+            "数据已保存到Excel文件\n"
+            "点击重置按钮重新开始")
+            .arg(experimentMode == ExperimentMode::PresetLowToHigh ? "低→高难度" : "高→低难度")
+            .arg(presetDuration)
+            .arg(questionsAnswered)
+            .arg(correctAnswers)
+            .arg(accuracy, 0, 'f', 1)
+            .arg(avgCorrectTime, 0, 'f', 2);
+    }
+    else {
+        resultText = QString("实验结束!\n"
+            "实验时长: %1秒\n"
+            "总答题数: %2\n"
+            "正确答题数: %3\n"
+            "准确率: %4%\n"
+            "正确答题平均时间: %5秒\n"
+            "数据已保存到Excel文件\n"
+            "点击重置按钮重新开始")
+            .arg(customExperimentTime)
+            .arg(questionsAnswered)
+            .arg(correctAnswers)
+            .arg(accuracy, 0, 'f', 1)
+            .arg(avgCorrectTime, 0, 'f', 2);
+    }
 
     ui->equationLabel->setText(resultText);
     ui->resultLabel->setText("");
     ui->timeBar->setVisible(false);
+    ui->currentDifficultyLabel->setVisible(false);
 }
 
-// 保存实验数据到Excel(CSV)文件
-void MathGame::saveExperimentData()
+void MathGame::savePresetExperimentData()
 {
     QString filePath = getExcelFilePath();
     QFile file(filePath);
@@ -873,7 +1384,74 @@ void MathGame::saveExperimentData()
 
     // 如果是新文件，写入标题行
     if (isNewFile) {
-        stream << QString::fromUtf8("实验时间,难度,总答题数,正确答题数,准确率(%),正确答题平均时间(秒)\n");
+        stream << QString::fromUtf8("实验时间,实验模式,每阶段时长(秒),难度,阶段答题数,阶段正确数,阶段准确率(%),总答题数,总正确数,总准确率(%),正确答题平均时间(秒)\n");
+    }
+
+    // 计算数据
+    double avgCorrectTime = calculateAverageCorrectTime();
+    QString modeText = (experimentMode == ExperimentMode::PresetLowToHigh) ? "低到高" : "高到低";
+
+    // 写入每个阶段的数据
+    for (int i = 0; i < presetStages.size(); i++) {
+        const PresetStage& stage = presetStages[i];
+        double stageAccuracy = (stage.questionsCount > 0) ?
+            static_cast<double>(stage.correctCount) / stage.questionsCount * 100 : 0.0;
+
+        stream << gameStartTime.toString("yyyy-MM-dd hh:mm:ss") << ","
+            << modeText << ","
+            << presetDuration << ","
+            << stage.difficulty << ","
+            << stage.questionsCount << ","
+            << stage.correctCount << ","
+            << QString::number(stageAccuracy, 'f', 1) << ","
+            << questionsAnswered << ","
+            << correctAnswers << ","
+            << QString::number(accuracy, 'f', 1) << ","
+            << QString::number(avgCorrectTime, 'f', 2) << "\n";
+    }
+
+    file.close();
+    qDebug() << "预设实验数据已保存到:" << filePath;
+
+    // 显示保存成功的消息
+    QMessageBox::information(this, "保存成功",
+        QString("预设实验数据已成功保存到:\n%1").arg(filePath));
+}
+
+// 保存实验数据到Excel(CSV)文件
+void MathGame::saveExperimentData()
+{
+    if (isPresetExperiment) {
+        savePresetExperimentData();
+        return;
+    }
+
+    QString filePath = getExcelFilePath();
+    QFile file(filePath);
+
+    bool isNewFile = !file.exists();
+
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Append)) {
+        qDebug() << "无法打开文件进行写入:" << filePath;
+        QMessageBox::warning(this, "保存失败", "无法保存实验数据到文件");
+        return;
+    }
+
+    QTextStream stream(&file);
+    // 修复UTF-8编码问题
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+    stream.setEncoding(QStringConverter::Utf8);
+#else
+    stream.setCodec("UTF-8");
+#endif
+    // 添加UTF-8 BOM头，确保Excel正确识别中文
+    if (isNewFile) {
+        stream.setGenerateByteOrderMark(true);
+    }
+
+    // 如果是新文件，写入标题行
+    if (isNewFile) {
+        stream << QString::fromUtf8("实验时间,实验模式,难度,实验时长(秒),总答题数,正确答题数,准确率(%),正确答题平均时间(秒)\n");
     }
 
     // 计算数据
@@ -881,7 +1459,9 @@ void MathGame::saveExperimentData()
 
     // 写入实验数据，使用fromUtf8确保编码正确
     stream << gameStartTime.toString("yyyy-MM-dd hh:mm:ss") << ","
+        << "单一难度" << ","
         << difficulty << ","
+        << customExperimentTime << ","
         << questionsAnswered << ","
         << correctAnswers << ","
         << QString::number(accuracy, 'f', 1) << ","
