@@ -12,6 +12,7 @@ DataOperation::DataOperation(QObject* parent):QObject(parent)
     fileStorage = FileStorage::instance(parent);
 
 	//–≈∫≈¡¨Ω”
+	connect(amplifier, &Amplifier::preproDatafinished, this, &DataOperation::preproDatafinished);
 
 	connect(amplifier, &Amplifier::rawDataFinished,fileStorage, &FileStorage::append);
 

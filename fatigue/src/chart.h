@@ -29,7 +29,7 @@ class Chart : public QWidget
 
     QString chartname;
 public:
-    Chart(QWidget* parent = 0, QString _chartname = "疲劳指数");
+    Chart(QWidget* parent = 0, QString _chartname = "高负荷指数");
     quint8 result;
     uint8_t localresult;
     bool is_receive=0;
@@ -72,13 +72,13 @@ private:
     QPieSeries *pieSeries;     // 饼图数据系列
     QChart *pieChart;          // 饼图图表
     QChartView *pieChartView;  // 饼图视图
-    int clearCount;            // 清醒次数计数
-    int fatigueCount;          // 疲劳次数计数
+    int clearCount;            // 低负荷次数计数
+    int fatigueCount;          // 高负荷次数计数
     QWidget *pieChartContainer; // 饼图容器 [新增]
-    QLabel *clearPercentageLabel;  // 清醒百分比标签
-    QLabel *fatiguePercentageLabel; // 疲劳百分比标签
-//    int clearCount;            // 清醒次数计数
-//    int fatigueCount;          // 疲劳次数计数
+    QLabel *clearPercentageLabel;  // 低负荷百分比标签
+    QLabel *fatiguePercentageLabel; // 高负荷百分比标签
+//    int clearCount;            // 低负荷次数计数
+//    int fatigueCount;          // 高负荷次数计数
 
     void init();
     void initPieChart();       // 初始化饼图的函数

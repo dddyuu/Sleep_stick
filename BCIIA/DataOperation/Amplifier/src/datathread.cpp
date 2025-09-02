@@ -21,6 +21,7 @@ void DataThread::run()
                 QList<uint8_t> label_data = device->getMuscleIndex();
                 emit locallabelFinished(label_data);
                 QList<QList<double>> raw_data=device->getRawData();
+				
                 emit rawDataFinished(raw_data);
                 QList<QList<double>> all_data=device->getChartData();
                 
@@ -29,6 +30,7 @@ void DataThread::run()
                 for (int i = 0;i < buf_num;i++) {
                     QList<double> chart_data = all_data.at(i);
                     // qDebug() << "滤波前:"<<chart_data;
+                    emit preproDatafinished(chart_data);
                     chart_data = filter.filterData(chart_data);
                     // qDebug() << "滤波后:" << chart_data;
                     if (!chart_data.isEmpty())

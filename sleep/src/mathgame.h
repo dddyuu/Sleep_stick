@@ -184,6 +184,7 @@ private:
     int questionsAnswered;  // 已答题数量
     int correctAnswers;     // 正确答案数量
     double accuracy;        // 准确率
+	QVector<int> userAnswers; // 用户答案列表
 
     // 键盘导航相关变量
     int currentButtonIndex; // 当前选中的按钮索引 (1-9对应1-9，0对应数字0)

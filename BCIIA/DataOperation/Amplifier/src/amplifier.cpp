@@ -148,7 +148,8 @@ void Amplifier::initDataThread()
 {
     datathread=new DataThread;
     connect(datathread,&DataThread::chartDataFinish,this,&Amplifier::chartDataFinished);
-    connect(datathread,&DataThread::rawDataFinished,this,&Amplifier::rawDataFinished);
+    connect(datathread,&DataThread::preproDatafinished,this,&Amplifier::preproDatafinished);
+    connect(datathread, &DataThread::rawDataFinished, this, &Amplifier::rawDataFinished);
     connect(datathread,&DataThread::locallabelFinished,this,&Amplifier::locallabelFinished);
 }
 

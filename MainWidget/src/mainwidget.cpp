@@ -26,7 +26,7 @@ void MainWidget::init()
     mediawidget->setWindowFlag(Qt::Dialog);
 
     //QStringList task_name={"测试demo","采集数据"};
-    QStringList task_name = {"采集数据" };
+    QStringList task_name = {"选择范式程序" };
     ui->btn_layout->setRowStretch(2,1);
     ui->btn_layout->setColumnStretch(4,1);
     for(int i=0;i<1;i++)
