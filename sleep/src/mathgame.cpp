@@ -139,24 +139,57 @@ void MathGame::setupModeButtons()
     connect(modeGroup, QOverload<int>::of(&QButtonGroup::buttonClicked),
         this, &MathGame::onModeChanged);
 
-    // 设置预设顺序按钮组
-    presetOrderGroup = new QButtonGroup(this);
-    presetOrderGroup->addButton(ui->lowToHighBtn, static_cast<int>(ExperimentMode::PresetLowToHigh));
-    presetOrderGroup->addButton(ui->highToLowBtn, static_cast<int>(ExperimentMode::PresetHighToLow));
-    connect(presetOrderGroup, QOverload<int>::of(&QButtonGroup::buttonClicked),
-        this, &MathGame::onPresetOrderSelected);
+    // 直接连接每个预设顺序按钮的点击信号，不使用按钮组
+    connect(ui->lowToHighBtn, &QPushButton::clicked, this, [this]() {
+        qDebug() << "低到高按钮被直接点击";
+        onPresetOrderSelectedDirect(ExperimentMode::PresetLowToHigh);
+        });
+
+    connect(ui->highToLowBtn, &QPushButton::clicked, this, [this]() {
+        qDebug() << "高到低按钮被直接点击";
+        onPresetOrderSelectedDirect(ExperimentMode::PresetHighToLow);
+        });
 
     // 设置初始状态
     ui->singleModeBtn->setChecked(true);
     ui->lowToHighBtn->setChecked(true);
 
-    // 调试输出确认按钮组设置
-    qDebug() << "模式按钮初始化完成";
-    qDebug() << "lowToHighBtn ID:" << static_cast<int>(ExperimentMode::PresetLowToHigh);
-    qDebug() << "highToLowBtn ID:" << static_cast<int>(ExperimentMode::PresetHighToLow);
-    qDebug() << "当前预设顺序选中按钮ID:" << presetOrderGroup->checkedId();
-}
+    // 重要：将 presetOrderGroup 设置为 nullptr，因为我们不再使用它
+    presetOrderGroup = nullptr;
 
+    qDebug() << "模式按钮初始化完成，单一模式选中，预设顺序默认为低到高";
+}
+void MathGame::onPresetOrderSelectedDirect(ExperimentMode mode)
+{
+    qDebug() << "直接预设顺序选择，模式:" << static_cast<int>(mode);
+
+    // 设置按钮状态
+    if (mode == ExperimentMode::PresetLowToHigh) {
+        ui->lowToHighBtn->setChecked(true);
+        ui->highToLowBtn->setChecked(false);
+        qDebug() << "设置为低到高模式";
+    }
+    else {
+        ui->highToLowBtn->setChecked(true);
+        ui->lowToHighBtn->setChecked(false);
+        qDebug() << "设置为高到低模式";
+    }
+
+    // 首先自动切换到预设模式
+    ui->presetModeBtn->setChecked(true);
+    ui->singleModeBtn->setChecked(false);
+
+    // 更新实验模式
+    experimentMode = mode;
+    qDebug() << "自动切换到预设模式，实验模式设置为:" << static_cast<int>(experimentMode);
+
+    // 更新按钮样式
+    ui->singleModeBtn->setStyleSheet("background-color: #9E9E9E; color: white; border-radius: 10px;");
+    ui->presetModeBtn->setStyleSheet("background-color: #2196F3; color: white; border-radius: 10px;");
+
+    // 更新UI
+    updateModeUI();
+}
 void MathGame::onModeChanged()
 {
     int buttonId = modeGroup->checkedId();
@@ -168,17 +201,17 @@ void MathGame::onModeChanged()
         qDebug() << "切换到单一模式";
     }
     else if (buttonId == 1) {
-        // 预设模式 - 获取当前选中的预设顺序
-        int orderButtonId = presetOrderGroup->checkedId();
-        qDebug() << "切换到预设模式，当前顺序buttonId:" << orderButtonId;
+        // 预设模式 - 根据当前按钮状态确定顺序
+        qDebug() << "切换到预设模式";
 
-        if (orderButtonId == static_cast<int>(ExperimentMode::PresetLowToHigh)) {
+        // 检查当前选中的预设顺序按钮
+        if (ui->lowToHighBtn->isChecked()) {
             experimentMode = ExperimentMode::PresetLowToHigh;
-            qDebug() << "设置为低到高模式";
+            qDebug() << "根据按钮状态设置为低到高模式";
         }
-        else if (orderButtonId == static_cast<int>(ExperimentMode::PresetHighToLow)) {
+        else if (ui->highToLowBtn->isChecked()) {
             experimentMode = ExperimentMode::PresetHighToLow;
-            qDebug() << "设置为高到低模式";
+            qDebug() << "根据按钮状态设置为高到低模式";
         }
         else {
             // 默认设置为低到高
@@ -203,8 +236,25 @@ void MathGame::onModeChanged()
 
 void MathGame::onPresetOrderSelected()
 {
-    int buttonId = presetOrderGroup->checkedId();
-    qDebug() << "预设顺序按钮点击，buttonId:" << buttonId;
+    // 先获取是哪个按钮被点击了（在按钮状态可能被改变之前）
+    QPushButton* clickedButton = qobject_cast<QPushButton*>(sender());
+    int buttonId = -1;
+
+    if (clickedButton == ui->lowToHighBtn) {
+        buttonId = static_cast<int>(ExperimentMode::PresetLowToHigh);
+        qDebug() << "检测到点击低到高按钮";
+    }
+    else if (clickedButton == ui->highToLowBtn) {
+        buttonId = static_cast<int>(ExperimentMode::PresetHighToLow);
+        qDebug() << "检测到点击高到低按钮";
+    }
+    else {
+        // 备用方案：检查按钮组
+        buttonId = presetOrderGroup->checkedId();
+        qDebug() << "通过按钮组获取buttonId:" << buttonId;
+    }
+
+    qDebug() << "预设顺序按钮点击，确定的buttonId:" << buttonId;
 
     // 添加调试信息
     qDebug() << "lowToHighBtn是否选中:" << ui->lowToHighBtn->isChecked();
@@ -212,15 +262,23 @@ void MathGame::onPresetOrderSelected()
 
     // 检查buttonId的有效性
     if (buttonId == -1) {
-        qDebug() << "错误：没有预设顺序按钮被选中";
-        // 强制设置为低到高模式
+        qDebug() << "错误：无法确定点击的预设顺序按钮，默认使用低到高";
         buttonId = static_cast<int>(ExperimentMode::PresetLowToHigh);
+    }
+
+    // 确保正确的按钮被选中
+    if (buttonId == static_cast<int>(ExperimentMode::PresetLowToHigh)) {
         ui->lowToHighBtn->setChecked(true);
-        qDebug() << "强制设置为低到高模式，buttonId:" << buttonId;
+        ui->highToLowBtn->setChecked(false);
+    }
+    else {
+        ui->highToLowBtn->setChecked(true);
+        ui->lowToHighBtn->setChecked(false);
     }
 
     // 首先自动切换到预设模式
     ui->presetModeBtn->setChecked(true);
+    ui->singleModeBtn->setChecked(false);
 
     // 更新实验模式
     experimentMode = static_cast<ExperimentMode>(buttonId);

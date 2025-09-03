@@ -167,6 +167,7 @@ private slots:
     void onModeChanged();          // 新增：实验模式改变的槽函数
     void onPresetOrderSelected();   // 新增：预设顺序选择的槽函数
 
+    void onPresetOrderSelectedDirect(ExperimentMode mode);   // 新增：直接预设顺序选择的槽函数
 private:
     void generateEquation();
     QString generateExpression(int count);
