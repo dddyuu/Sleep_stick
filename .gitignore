@@ -10,3 +10,4 @@
 *.user
 onnx/.idea/workspace.xml
 /onnx/.idea
+/LocalAmplifer/.vs

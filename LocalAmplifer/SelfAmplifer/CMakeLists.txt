@@ -15,7 +15,7 @@ if(MSVC)
 endif()
 set(Qt5_DIR "D:\\Qt\\Qt5.14.2\\5.14.2\\msvc2017_64\\lib\\cmake\\Qt5")
 find_package(Qt5 COMPONENTS Core widgets Concurrent serialport  network REQUIRED)
- 
+  
 #add_subdirectory(test)
 if(MSVC)
     if(${CMAKE_BUILD_TYPE} STREQUAL "Release")
