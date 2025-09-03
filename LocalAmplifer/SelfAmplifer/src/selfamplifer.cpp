@@ -27,8 +27,7 @@ void SelfAmplifer::stop()
 
 QStringList SelfAmplifer::getChannelName()
 {
-    return {"FP2","AFZ","F4","F8","FCZ","FC4","FT8","CZ","T7","C3","FT7","FC3","F7","F3","FZ","FP1","O2","PO4","P8","P4",
-    "TP8","CP4","T8","C4","CP3","TP7","PZ","P3","P7","PO3","OZ","O1"};
+    return {"FP1","FP2" };
 }
 
 quint8 SelfAmplifer::getChannnelNum()
@@ -38,7 +37,7 @@ quint8 SelfAmplifer::getChannnelNum()
 
 quint16 SelfAmplifer::getSampleRate()
 {
-    return 2000;
+    return 500;
 }
 
 QWidget *SelfAmplifer::getConnectWidget()
@@ -152,7 +151,7 @@ QList<uint8_t> SelfAmplifer::getEEGGameIndex()
 
 QList<uint8_t> SelfAmplifer::getEEGIndex()
 {
-    return {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31};
+    return {0,1};
 }
 
 QList<uint8_t> SelfAmplifer::getEyeIndex()
@@ -202,7 +201,7 @@ void SelfAmplifer::init()
     matread = new MatRead;
     connect_status = false;
     initConnetWidget();
-    channel_num = 32;//初始化通道数
+    channel_num = 2;//初始化通道数
     status = false;//初始化采集器状态
     //channel_num=parse.getChannelNum();//初始化通道数
     //status=false;//初始化采集器状态

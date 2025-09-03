@@ -25,7 +25,7 @@ Recognition::Recognition()
     setOuputNames(output_names);
 
     // 加载预训练模型（路径需根据实际情况修改）
-    load(L"D:/Qt_Projects/Sleep_stick/BCIIA/Calculate/model/deeplearn/gr.onnx");
+    load(L"E:/learn/sleep/Sleep_stick/BCIIA/Calculate/model/deeplearn/gr.onnx");
     std::cout.flush();
 }
 
