@@ -53,14 +53,13 @@ def preprocess_eeg(file_path, output_path, downsample_freq=250):
     event_struct = eeg_struct['event']
 
     position = np.zeros(6,)
-    position[0,], position[1,], position[2,], position[3,], position[4,], position[5,]  = event_struct[0,0]['latency'][:,0][0][0][0], event_struct[0,0]['latency'][:,0][1][0][0], event_struct[0,0]['latency'][:,0][2][0][0], event_struct[0,0]['latency'][:,0][3][0][0], event_struct[0,0]['latency'][:,0][4][0][0], event_struct[0,0]['latency'][:,0][5][0][0]
+    position[0,], position[1,], position[2,], position[3,]  = event_struct[0,0]['latency'][:,0][0][0][0], event_struct[0,0]['latency'][:,0][1][0][0], event_struct[0,0]['latency'][:,0][2][0][0], event_struct[0,0]['latency'][:,0][3][0][0], 
     position = position.astype(int)
 
     types = np.zeros(6,)
-    types[0,], types[1,], types[2,], types[3,], types[4,], types[5,] = \
+    types[0,], types[1,], types[2,], types[3,] = \
     event_struct[0, 0]['type'][:, 0][0][0][0], event_struct[0, 0]['type'][:, 0][1][0][0], \
-    event_struct[0, 0]['type'][:, 0][2][0][0], event_struct[0, 0]['type'][:, 0][3][0][0], \
-    event_struct[0, 0]['type'][:, 0][4][0][0], event_struct[0, 0]['type'][:, 0][5][0][0]
+    event_struct[0, 0]['type'][:, 0][2][0][0], event_struct[0, 0]['type'][:, 0][3][0][0],
     types = types.astype(int)
     events = np.column_stack([position, np.zeros_like(position), types])
 
@@ -209,12 +208,12 @@ def save_to_npy(file_path,output_data_path,output_label_path):
     low_data = low_data.reshape(-1, 2, 250)
     low_label = np.repeat(0, low_data.shape[0])
 
-    mid_data = data1[event_data1[0][0][0][2]:event_data1[0][0][0][3]]
+    mid_data = data1[event_data1[0][0][0][1]:event_data1[0][0][0][2]]
     mid_data = mid_data[:mid_data.shape[0] // 250 * 250]
     mid_data = mid_data.reshape(-1, 2, 250)
     mid_label = np.repeat(1, mid_data.shape[0])
 
-    high_data = data1[event_data1[0][0][0][4]:event_data1[0][0][0][5]]
+    high_data = data1[event_data1[0][0][0][2]:event_data1[0][0][0][3]]
     high_data = high_data[:high_data.shape[0] // 250 * 250]
     high_data = high_data.reshape(-1, 2, 250)
     high_label = np.repeat(2, high_data.shape[0])
@@ -229,7 +228,7 @@ def save_to_npy(file_path,output_data_path,output_label_path):
 
 # 使用示例
 if __name__ == "__main__":
-    filename = "gr_0"
+    filename = "grr_0"
     path = "D:/curwork/9_month/liu/"
     input_mat_file = path + filename + ".mat"  
     output_mat_file = path + filename + "_process.mat"
@@ -239,16 +238,16 @@ if __name__ == "__main__":
     output_model_file = "D:/curwork/9_month/liu/model/" + filename + ".pth"
     output_npy_data = datapth + filename + ".npy"
     output_npy_label = labelpth + filename + ".npy"
-    # preprocess_eeg(input_mat_file, output_mat_file, downsample_freq=250)
-    # save_to_npy(output_mat_file,output_npy_data, output_npy_label)
+    preprocess_eeg(input_mat_file, output_mat_file, downsample_freq=250)
+    save_to_npy(output_mat_file,output_npy_data, output_npy_label)
 
     # # 训练并保存模型
     # train_loader, val_loader = get_data_loaders(output_npy_data, output_npy_label, batch_size=128)
     # train_and_save_model(train_loader, val_loader, output_model_file)
 
-    data = np.random.rand(2,500)
-    tdata = preprocess_data(data)
-    label = load_model_weights_predict(output_model_file,tdata)[0]
-    print(label)
+    # data = np.random.rand(2,500)
+    # tdata = preprocess_data(data)
+    # label = load_model_weights_predict(output_model_file,tdata)[0]
+    # print(label)
 
     

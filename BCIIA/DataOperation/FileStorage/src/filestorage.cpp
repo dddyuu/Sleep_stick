@@ -262,7 +262,7 @@ void FileStorage::appendEvent(int type)
     else if (type == 54) {
         cachingActive = false;
         qDebug() << "Event 54: TCP data transmission stopped, connection maintained";
-
+        save();
         // 发送事件54通知给Python
         sendEventNotification(54);
     }
@@ -504,7 +504,7 @@ void FileStorage::initTcpConnection()
     connect(tcpSocket, &QTcpSocket::disconnected, this, &FileStorage::onTcpDisconnected);
     connect(tcpSocket, QOverload<QAbstractSocket::SocketError>::of(&QAbstractSocket::error),
         this, &FileStorage::onTcpError);
-    // 新增：连接数据接收信号
+    //连接数据接收信号
     connect(tcpSocket, &QTcpSocket::readyRead, this, &FileStorage::onTcpDataReceived);
 }
 
@@ -595,8 +595,10 @@ void FileStorage::sendDataToTcp(const QList<QList<double>>& data)
     tcpSocket->flush();
 
     bool success = (bytesWritten == packet.size());
-    //qDebug() << "TCP data sent:" << bytesWritten << "bytes, success:" << success;
-    //qDebug() << "Event type:" << currentEventType << "Filename:" << currentFilename;
-    //qDebug() << "Channels:" << channelCount << "Samples:" << sampleCount;
+
+
+ /*   qDebug() << "TCP data sent:" << bytesWritten << "bytes, success:" << success;
+    qDebug() << "Event type:" << currentEventType << "Filename:" << currentFilename;
+    qDebug() << "Channels:" << channelCount << "Samples:" << sampleCount;*/
     emit tcpDataSent(success);
 }

@@ -36,7 +36,7 @@ MathGame::MathGame(QWidget* parent) :
     experimentMode(ExperimentMode::Single), // 默认单一模式
     currentPresetStageIndex(0),
     presetStageTimeLeft(0),
-    presetDuration(60), // 默认每个难度60秒
+    presetDuration(10), // 默认每个难度60秒
     isPresetExperiment(false),
     currentStageQuestions(0),
     currentStageCorrect(0)

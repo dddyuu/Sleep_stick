@@ -11,3 +11,5 @@
 onnx/.idea/workspace.xml
 /onnx/.idea
 /LocalAmplifer/.vs
+/model/.idea
+/model/__pycache__
