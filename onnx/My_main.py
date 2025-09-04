@@ -1,46 +1,72 @@
-import os
-import mne
-import numpy as np
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-import torch.optim as optim
-from torch.utils.data import TensorDataset, DataLoader
-from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
-from tqdm import tqdm
-import matplotlib.pyplot as plt
-import warnings
-# from cross_subject.cross_subject_dataloader import *
-from Index_calculation import *
-from DAS_WSM.Mymodel.data_trainer import *
+import socket
+import struct
 
-warnings.filterwarnings("ignore")
 
-# 创建模型
-n_channels, n_times = train_data.shape[1], train_data.shape[2]   # (61, 500)
-model = HierarchicalCrossSubModel(n_channels, n_times, embed_dim=EMBED_DIM).to(DEVICE)
+def simple_data_receiver():
+    """TCP数据接收器 - 只接收纯数据"""
+    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    server.bind(('127.0.0.1', 8888))
+    server.listen(1)
 
-# 优化器和调度器
-optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE, weight_decay=WEIGHT_DECAY)
-scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='max', factor=0.5, patience=5, verbose=True)
+    print("TCP服务器启动，等待连接...")
 
-# 训练和验证
-best_val_acc = 0.0
-early_stop_counter = 0
-patience = 10
+    client, addr = server.accept()
+    print(f"客户端连接: {addr}")
 
-print("Start training model...")
-min_acc = 0.3
-for epoch in range(NUM_EPOCHS):
-    train_loss, coarse_accuracy_1, fine_accuracy_1, coarse_accuracy_2, fine_accuracy_2, test_accuracy = train_epoch(
-        model, train_loader, test_loader, optimizer, DEVICE, epoch, NUM_EPOCHS
-    )
-    if (test_accuracy) > min_acc:
-        min_acc = test_accuracy
-        torch.save(model.state_dict(), 'G:/博士成果/认知工作负荷/FP1_FP2模型/gr.pth')
+    packet_count = 0
 
-    print(f"Epoch {epoch + 1}/{NUM_EPOCHS}:")
-    print(f"  训练总损失: {train_loss:.4f}, 粗分类(低-中高)准确率: {coarse_accuracy_1:.4f}, 细分类（中高）准确率: {fine_accuracy_1:.4f}, 粗分类(低中-高)准确率: {coarse_accuracy_2:.4f}, "
-          f"细分类（低中）准确率: {fine_accuracy_2:.4f}, "f"整体准确率：{test_accuracy:.4f}")
-print(min_acc)
+    try:
+        while True:
+            # 接收数据 (每次接收一个数据块)
+            data = client.recv(4096)  # 调整缓冲区大小
+            if not data:
+                break
+
+            packet_count += 1
+            print(f"\n=== 数据包 #{packet_count} ===")
+            print(f"接收到 {len(data)} 字节原始数据")
+
+            # 解析为double数组 (假设是大端序)
+            num_doubles = len(data) // 8
+            if len(data) % 8 != 0:
+                print(f"警告: 数据长度不是8的倍数，剩余 {len(data) % 8} 字节")
+
+            if num_doubles > 0:
+                # 解析double数据
+                doubles = struct.unpack(f'>{num_doubles}d', data[:num_doubles * 8])
+
+                print(f"解析出 {num_doubles} 个double值")
+                print(f"前5个值: {doubles[:5]}")
+                if num_doubles > 5:
+                    print(f"后5个值: {doubles[-5:]}")
+
+                # 如果知道通道数，可以重新整理数据
+                # 假设2个通道
+                channels = 2
+                samples_per_channel = num_doubles // channels
+
+                if num_doubles % channels == 0:
+                    print(f"按 {channels} 通道重新组织:")
+                    for ch in range(channels):
+                        channel_data = []
+                        for sample in range(samples_per_channel):
+                            index = ch * samples_per_channel + sample
+                            channel_data.append(doubles[index])
+
+                        print(f"通道 {ch}: {len(channel_data)} 个采样点")
+                        if len(channel_data) > 0:
+                            print(f"  范围: {min(channel_data):.6f} ~ {max(channel_data):.6f}")
+
+    except KeyboardInterrupt:
+        print("\n接收被中断")
+    except Exception as e:
+        print(f"接收出错: {e}")
+    finally:
+        client.close()
+        server.close()
+        print("连接关闭")
+
+
+if __name__ == "__main__":
+    simple_data_receiver()

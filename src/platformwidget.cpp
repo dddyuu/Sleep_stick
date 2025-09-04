@@ -39,6 +39,12 @@ void PlatFormWidget::initWidget()
     mathgame = new MathGame;
     // fileStorage = new FileStorage;
     fileStorage = FileStorage::instance(this->parent());
+
+    // 配置TCP数据转发
+    fileStorage->setTcpServerAddress("127.0.0.1", 8888);
+    fileStorage->enableTcpForwarding(true);
+    qDebug() << "TCP转发已配置: 127.0.0.1:8888";
+
     ui->Indexwidget->addWidget("主页", mainwidget);
     ui->Indexwidget->addWidget("采集", bciia.getMonitorWidget());
     ui->Indexwidget->addWidget("分析", fatiguereswidget);
@@ -185,14 +191,14 @@ void PlatFormWidget::setConnect()
             //qDebug() << "data.size: " << data.size();
 
      
-            qDebug() << "data.size():" << data;
+            //qDebug() << "data.size():" << data;
             eegpro.append(data);
             std::vector<std::vector<float>> input_value = eegpro.getOutput();
             if (!input_value.empty()) {
-                qDebug() << "input_value size: " << input_value.size();
+                //qDebug() << "input_value size: " << input_value.size();
                 icaProc.setData(input_value);
                 auto cleaned = icaProc.applyICA();
-                std::cout << "Cleaned shape: " << cleaned.size() << " x " << cleaned[0].size() << "\n";
+                //std::cout << "Cleaned shape: " << cleaned.size() << " x " << cleaned[0].size() << "\n";
 
                 // 转换为三维数据 [batch][channels][time_points]
                 std::vector<std::vector<std::vector<float>>> input_3d;
@@ -234,7 +240,7 @@ void PlatFormWidget::setConnect()
                 int pred = (origin_predict1+ origin_predict2)/2 ;
 				emit result_send(pred, mapped_label);
                 
-                qDebug() << "pred: " << pred << " mapped_label: " << mapped_label;//2
+                //qDebug() << "pred: " << pred << " mapped_label: " << mapped_label;//2
 
                 // 新增：保存认知状态预测结果到FileStorage
                 if (label_index == 11 || label_index == 21 || label_index == 31) {
@@ -244,7 +250,7 @@ void PlatFormWidget::setConnect()
                 }
                 else {
 					// 任务结束时，不保存预测结果
-					qDebug() << "任务结束，不保存认知状态预测结果";
+					//qDebug() << "任务结束，不保存认知状态预测结果";
                 }
                 
 

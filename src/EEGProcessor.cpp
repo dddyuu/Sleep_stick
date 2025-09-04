@@ -160,7 +160,7 @@ QList<double> EEGProcessor::resampleChannel(const QList<double>& data) {
         output.append(interpolated);
     }
     
-    qDebug() << "Resampled from " << data.size() << " to " << output.size() << " (ratio:" << ratio << ")";
+    //qDebug() << "Resampled from " << data.size() << " to " << output.size() << " (ratio:" << ratio << ")";
     return output;
 }
 
@@ -170,7 +170,7 @@ QList<QList<double>> EEGProcessor::process(const QList<double>& input, size_t nu
     if (input.size() != static_cast<int>(num_channels_ * num_samples)) {
         throw std::invalid_argument("�������ݳߴ���ͨ������ƥ��");
     }
-	qDebug() << input.size()<<" \n"<<"num_samples: "<<  num_samples;
+	//qDebug() << input.size()<<" \n"<<"num_samples: "<<  num_samples;
 
     for (size_t ch = 0; ch < num_channels_; ch++) {
         QList<double> ch_data;

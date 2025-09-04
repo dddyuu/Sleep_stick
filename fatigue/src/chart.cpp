@@ -587,6 +587,6 @@ void Chart::connectdata(quint8 data, uint8_t localdata) {
     
     localresult = localdata;
     
-    qDebug()<<"本地数据标签:"<<localresult;
+    //qDebug()<<"本地数据标签:"<<localresult;
     receiveDatas();
 }
