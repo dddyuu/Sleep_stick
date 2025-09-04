@@ -568,6 +568,18 @@ void MathGame::switchToNextPresetStage()
     if (currentPresetStageIndex >= presetStages.size()) {
         // 所有阶段完成
         qDebug() << "所有预设阶段完成";
+
+        // 发送预设实验结束标签
+        QString endTag;
+        if (experimentMode == ExperimentMode::PresetLowToHigh) {
+            endTag = "54";
+        }
+        else {
+            endTag = "62";
+        }
+        emit tagSent(endTag);
+        qDebug() << "发送预设实验结束标签:" << endTag;
+
         gameTimer->stop();
         presetStageTimer->stop();
         questionTimer->stop();
@@ -590,9 +602,9 @@ void MathGame::switchToNextPresetStage()
     // 发送难度切换标签
     QString switchTag;
     switch (difficulty) {
-    case 1: switchTag = "41"; break;  // 切换到难度一
-    case 2: switchTag = "42"; break;  // 切换到难度二
-    case 3: switchTag = "43"; break;  // 切换到难度三
+    case 1: switchTag = "51"; break;  // 切换到难度一
+    case 2: switchTag = "52"; break;  // 切换到难度二
+    case 3: switchTag = "53"; break;  // 切换到难度三
     }
     emit tagSent(switchTag);
     qDebug() << "切换到阶段" << currentPresetStageIndex + 1 << "难度" << difficulty << "标签:" << switchTag;

@@ -10,8 +10,8 @@
 #include "QElapsedTimer"
 #include "QDateTime"
 #include "QFileInfo"
-#include "QTcpSocket"  // 添加TCP支持
-#include "QHostAddress"
+#include <QTcpSocket>  // 添加TCP支持
+#include <QHostAddress>
 
 // 标签信息结构体
 struct LabelInfo {
@@ -46,6 +46,7 @@ public:
     // TCP相关接口
     void setTcpServerAddress(const QString& address, quint16 port);
     void enableTcpForwarding(bool enabled);
+    void startTcpConnection();  // 手动启动TCP连接
 
 public slots:
     //开始
@@ -72,6 +73,7 @@ private slots:
     void onTcpConnected();
     void onTcpDisconnected();
     void onTcpError(QAbstractSocket::SocketError socketError);
+    void onTcpDataReceived();  // 新增：接收Python数据
 
 private:
     // 私有构造函数确保单例
@@ -97,6 +99,7 @@ private:
     QElapsedTimer* elapsedTimer;  // 计时器
     quint64 totalSampleCount;     // 总采样点计数
     quint16 currentSampleRate;    // 当前采样率
+    int currentEventType;         // 当前事件类型
 
     // 事件51缓存相关成员变量
     bool cachingActive;           // 是否正在进行缓存
@@ -109,6 +112,7 @@ private:
     QString tcpServerAddress;     // TCP服务器地址
     quint16 tcpServerPort;        // TCP服务器端口
     bool tcpForwardingEnabled;    // TCP转发是否启用
+    QByteArray tcpReceiveBuffer;  // 接收缓冲区
 
     void initTimer();
     void init();
@@ -121,6 +125,8 @@ private:
     void initTcpConnection();     // 初始化TCP连接
     void sendDataToTcp(const QList<QList<double>>& data);  // 发送数据到TCP服务器
     void connectToTcpServer();    // 连接到TCP服务器
+    void sendEventNotification(int eventType);  // 发送事件通知
+    void processPythonIntData();  // 处理Python发送的整数数据
 
     //保存模式，0：定时器保存，1：采样率保存，默认1
     unsigned short int mode;
@@ -139,5 +145,6 @@ signals:
     void mergeMsg(QString);
     void cachedDataReady(QList<QList<double>> cachedData); // 缓存数据就绪信号
     void tcpDataSent(bool success); // TCP数据发送结果信号
+    void pythonIntReceived(int value); // 新增：Python整数接收信号
 };
 #endif // FILESTORAGE_H
