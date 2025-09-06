@@ -36,6 +36,9 @@ public:
 
 	//����
 	void decode(bool);
+public slots:
+	// 处理从Python接收到的整数数据的槽函数
+	void handlePythonIntData(int value);
 signals:
 	void loadPluginSucceed();
 	void chartDataFinished(QList<double>);
@@ -43,6 +46,9 @@ signals:
     void locallabelFinished(QList<uint8_t>);
 	void preproDatafinished(QList<double>);
 	void rawDataFinished(QList<QList<double>>);
+	// 将Python分类结果传输出去
+	void pythonClassificationReceived(int classificationResult);
+
 private:
 	Amplifier* amplifier;
 	FileStorage* fileStorage;

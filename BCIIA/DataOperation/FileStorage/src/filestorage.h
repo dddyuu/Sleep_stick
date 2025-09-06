@@ -145,6 +145,6 @@ signals:
     void mergeMsg(QString);
     void cachedDataReady(QList<QList<double>> cachedData); // 缓存数据就绪信号
     void tcpDataSent(bool success); // TCP数据发送结果信号
-    void pythonIntReceived(int value); // 新增：Python整数接收信号
+    void pythonIntReceived(int value); // Python整数接收信号，实时计算标签
 };
 #endif // FILESTORAGE_H

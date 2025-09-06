@@ -9,7 +9,7 @@ warnings.filterwarnings("ignore")
 # 创建模型
 
 def train_and_save_model(train_loader, test_loader, model_path):
-    n_channels, n_times = 2,250
+    n_channels, n_times = 2, 250
     model = HierarchicalCrossSubModel(n_channels, n_times, embed_dim=EMBED_DIM).to(DEVICE)
 
     # 优化器和调度器

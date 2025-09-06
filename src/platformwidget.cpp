@@ -146,11 +146,12 @@ void PlatFormWidget::setConnect()
     // 转发被试名称
     connect(fatiguereswidget, &FatigueResWidget::transSubname, &bciia, &BCIIA::reciveSubName);
     connect(this, &PlatFormWidget::result_send, fatiguereswidget, &FatigueResWidget::sendData);
-    //转发计算的label进行保存
+	
     
     //connect(this, &PlatFormWidget::result_send, fileStorage, &FileStorage::appendLabel);
     // 新增：连接MathGame的标签信号并转发到FileStorage
-            connect(mathgame, &MathGame::tagSent, this, [=](const QString& tag) {
+    connect(mathgame, &MathGame::tagSent, this, [=](const QString& tag) {
+
         // 将QString标签转换为int并转发
         bool ok;
         int tagValue = tag.toUInt(&ok);
@@ -184,8 +185,26 @@ void PlatFormWidget::setConnect()
     //    }
     //});
 
-
-
+//转发计算的label进行保存
+    connect(&bciia, &BCIIA::handleClassificationResult, this, [=](int data) {
+        // 将标签映射到分类标签
+        int mapped_label;
+        if (label_index == 51) {
+            mapped_label = 0;  // 难度1
+        }
+        else if (label_index == 52) {
+            mapped_label = 1;  // 难度2
+        }
+        else if (label_index == 53) {
+            mapped_label = 2;  // 难度3
+        }
+        else {
+            mapped_label = 0;  // 默认值
+        }
+		qDebug() << "接收到Python分类结果:" << data << "映射标签:" << mapped_label;
+		emit result_send(data, mapped_label);
+    });
+    
     // 在信号槽中使用
         connect(&bciia, &BCIIA::preproDatafinished, this, [=](QList<double> data) {
             //qDebug() << "data.size: " << data.size();
@@ -238,7 +257,8 @@ void PlatFormWidget::setConnect()
                 
 				// 进行预测
                 int pred = (origin_predict1+ origin_predict2)/2 ;
-				emit result_send(pred, mapped_label);
+                //这里的暂时不要，使用我们的py的计算的标签值
+				//emit result_send(pred, mapped_label);
                 
                 //qDebug() << "pred: " << pred << " mapped_label: " << mapped_label;//2
 

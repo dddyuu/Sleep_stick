@@ -53,7 +53,7 @@ def preprocess_eeg(file_path, output_path, downsample_freq=250):
     event_struct = eeg_struct['event']
 
     position = np.zeros(6,)
-    position[0,], position[1,], position[2,], position[3,]  = event_struct[0,0]['latency'][:,0][0][0][0], event_struct[0,0]['latency'][:,0][1][0][0], event_struct[0,0]['latency'][:,0][2][0][0], event_struct[0,0]['latency'][:,0][3][0][0], 
+    position[0,], position[1,], position[2,], position[3,]  = event_struct[0,0]['latency'][:,0][0][0][0], event_struct[0,0]['latency'][:,0][1][0][0], event_struct[0,0]['latency'][:,0][2][0][0], event_struct[0,0]['latency'][:,0][3][0][0],
     position = position.astype(int)
 
     types = np.zeros(6,)
@@ -228,26 +228,40 @@ def save_to_npy(file_path,output_data_path,output_label_path):
 
 # 使用示例
 if __name__ == "__main__":
-    filename = "grr_0"
-    path = "D:/curwork/9_month/liu/"
-    input_mat_file = path + filename + ".mat"  
+    filename = "grxx"
+    path = "D:/SubEEG/"
+    input_mat_file = path + filename + "_1.mat"
     output_mat_file = path + filename + "_process.mat"
     # # 运行预处理
-    datapth = "D:/curwork/9_month/liu/data/"
-    labelpth = "D:/curwork/9_month/liu/label/"
-    output_model_file = "D:/curwork/9_month/liu/model/" + filename + ".pth"
+    datapth = "D:/SubEEG/data/"
+    labelpth = "D:/SubEEG/label/"
+    output_model_file = "D:/SubEEG/model/" + filename + ".pth"
     output_npy_data = datapth + filename + ".npy"
     output_npy_label = labelpth + filename + ".npy"
-    preprocess_eeg(input_mat_file, output_mat_file, downsample_freq=250)
-    save_to_npy(output_mat_file,output_npy_data, output_npy_label)
-
+    # preprocess_eeg(input_mat_file, output_mat_file, downsample_freq=250)
+    # save_to_npy(output_mat_file,output_npy_data, output_npy_label)
+    data = np.load(output_npy_data)
+    label = np.load(output_npy_label)
+    print(len(data))
     # # 训练并保存模型
+
     # train_loader, val_loader = get_data_loaders(output_npy_data, output_npy_label, batch_size=128)
     # train_and_save_model(train_loader, val_loader, output_model_file)
-
-    # data = np.random.rand(2,500)
+    totol = len(data)
+    plabelist = []
+    correct = 0
+    for i in range(len(data)):
+        tdata = data[i]
+        tlabel = label[i]
+        Plabel = load_model_weights_predict(output_model_file, tdata)[0]
+        plabelist.append(Plabel)
+        if tlabel == Plabel:
+            correct+=1
+    acc = correct / totol
+    print(acc)
+    # # data = np.random.rand(2, 500)
     # tdata = preprocess_data(data)
     # label = load_model_weights_predict(output_model_file,tdata)[0]
-    # print(label)
+    # # print(label)
 
-    
+
