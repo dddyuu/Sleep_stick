@@ -7,7 +7,9 @@ BCIIA::BCIIA(QObject* parent):QObject(parent)
 	setDataOperationConnect();
 	setBCIMonitorConnect();
 	connect(dataoperation, &DataOperation::chartDataFinished, this, &BCIIA::chartDataFinished);
+	connect(dataoperation, &DataOperation::preproDatafinished, this, &BCIIA::preproDatafinished);
     connect(dataoperation, &DataOperation::locallabelFinished, this, &BCIIA::locallabelFinished);
+	connect(dataoperation, &DataOperation::pythonClassificationReceived, this, &BCIIA::handleClassificationResult);
 }
 BCIIA::~BCIIA()
 {

@@ -28,7 +28,7 @@ private:
     void  writeFilename();
     //mat数据
     matvar_t *eeg;
-    double getexpand = 0.01;
+    double getexpand = 1;
     //脑电数据
     double *eegdata;
     //脑电数据当尾地址

@@ -14,6 +14,9 @@ signals:
 	void chartDataFinished(QList<double>);
     void locallabelFinished(QList<uint8_t>);
     void sendlabel(quint8 data);
+	void rawDataFinished(QList< QList<double>>);
+	void preproDatafinished(QList<double>);
+	void handleClassificationResult(int classificationResult);
 public slots:
     void reciveSubName(QString subname);
 private:

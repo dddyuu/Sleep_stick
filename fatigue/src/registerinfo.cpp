@@ -77,7 +77,8 @@ void registerInfo::on_EditInfoBtn_clicked()
         }
         // 保存到JSON文件
         saveInfoJson();
-        qDebug()<<Subname;
+        //qDebug()<<Subname;
+
         emit sendSubname(Subname);
     }
 

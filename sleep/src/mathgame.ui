@@ -114,6 +114,26 @@
 									</property>
 								</widget>
 							</item>
+							<item>
+								<widget class="QLabel" name="currentDifficultyLabel">
+									<property name="font">
+										<font>
+											<pointsize>16</pointsize>
+											<weight>75</weight>
+											<bold>true</bold>
+										</font>
+									</property>
+									<property name="styleSheet">
+										<string notr="true">background-color: #FF9800; color: white; border-radius: 5px; padding: 5px;</string>
+									</property>
+									<property name="alignment">
+										<set>Qt::AlignCenter</set>
+									</property>
+									<property name="text">
+										<string>当前难度: --</string>
+									</property>
+								</widget>
+							</item>
 						</layout>
 					</item>
 					<item>
@@ -393,6 +413,67 @@
 						</widget>
 					</item>
 					<item>
+						<spacer name="timeMiddleSpacer">
+							<property name="orientation">
+								<enum>Qt::Horizontal</enum>
+							</property>
+							<property name="sizeHint" stdset="0">
+								<size>
+									<width>20</width>
+									<height>20</height>
+								</size>
+							</property>
+						</spacer>
+					</item>
+					<item>
+						<widget class="QLabel" name="timeLabel">
+							<property name="text">
+								<string>实验时长(秒):</string>
+							</property>
+							<property name="font">
+								<font>
+									<pointsize>16</pointsize>
+								</font>
+							</property>
+							<property name="styleSheet">
+								<string notr="true">background-color: white; border-radius: 5px; padding: 5px;</string>
+							</property>
+							<property name="alignment">
+								<set>Qt::AlignCenter</set>
+							</property>
+						</widget>
+					</item>
+					<item>
+						<widget class="QSpinBox" name="timeSpinBox">
+							<property name="minimumSize">
+								<size>
+									<width>80</width>
+									<height>40</height>
+								</size>
+							</property>
+							<property name="font">
+								<font>
+									<pointsize>16</pointsize>
+								</font>
+							</property>
+							<property name="styleSheet">
+								<string notr="true">background-color: white; border-radius: 5px; padding: 5px; border: 2px solid #2196F3;</string>
+							</property>
+							<property name="alignment">
+								<set>Qt::AlignCenter</set>
+							</property>
+							<property name="minimum">
+								<number>30</number>
+							</property>
+							<property name="maximum">
+								<number>600</number>
+							</property>
+							<property name="value">
+								<number>120</number>
+							</property>
+						</widget>
+					</item>
+					<item>
 						<spacer name="horizontalSpacer">
 							<property name="orientation">
 								<enum>Qt::Horizontal</enum>
@@ -413,7 +494,7 @@
 						<item>
 							<widget class="QLabel" name="difficultyLabel">
 								<property name="text">
-									<string>选择难度:</string>
+									<string>选择实验模式:</string>
 								</property>
 								<property name="font">
 									<font>
@@ -429,37 +510,16 @@
 							</widget>
 						</item>
 						<item>
-							<layout class="QHBoxLayout" name="difficultyLayout">
+							<layout class="QHBoxLayout" name="modeLayout">
 								<item>
-									<widget class="QPushButton" name="difficulty1Btn">
+									<widget class="QPushButton" name="singleModeBtn">
 										<property name="text">
-											<string>一级</string>
+											<string>单一难度</string>
 										</property>
 										<property name="minimumSize">
 											<size>
-												<width>100</width>
-												<height>60</height>
-											</size>
-										</property>
-										<property name="font">
-											<font>
-												<pointsize>16</pointsize>
-											</font>
-										</property>
-										<property name="styleSheet">
-											<string notr="true">background-color: #4CAF50; color: white; border-radius: 10px;</string>
-										</property>
-									</widget>
-								</item>
-								<item>
-									<widget class="QPushButton" name="difficulty2Btn">
-										<property name="text">
-											<string>二级</string>
-										</property>
-										<property name="minimumSize">
-											<size>
-												<width>100</width>
-												<height>60</height>
+												<width>120</width>
+												<height>50</height>
 											</size>
 										</property>
 										<property name="font">
@@ -470,17 +530,23 @@
 										<property name="styleSheet">
 											<string notr="true">background-color: #2196F3; color: white; border-radius: 10px;</string>
 										</property>
+										<property name="checkable">
+											<bool>true</bool>
+										</property>
+										<property name="checked">
+											<bool>true</bool>
+										</property>
 									</widget>
 								</item>
 								<item>
-									<widget class="QPushButton" name="difficulty3Btn">
+									<widget class="QPushButton" name="presetModeBtn">
 										<property name="text">
-											<string>三级</string>
+											<string>预设实验</string>
 										</property>
 										<property name="minimumSize">
 											<size>
-												<width>100</width>
-												<height>60</height>
+												<width>120</width>
+												<height>50</height>
 											</size>
 										</property>
 										<property name="font">
@@ -489,11 +555,243 @@
 											</font>
 										</property>
 										<property name="styleSheet">
-											<string notr="true">background-color: #FF9800; color: white; border-radius: 10px;</string>
+											<string notr="true">background-color: #9E9E9E; color: white; border-radius: 10px;</string>
+										</property>
+										<property name="checkable">
+											<bool>true</bool>
 										</property>
 									</widget>
 								</item>
 							</layout>
+						</item>
+						<item>
+							<widget class="QWidget" name="singleModeWidget" native="true">
+								<layout class="QVBoxLayout" name="singleModeLayout">
+									<item>
+										<widget class="QLabel" name="singleDifficultyLabel">
+											<property name="text">
+												<string>选择难度:</string>
+											</property>
+											<property name="font">
+												<font>
+													<pointsize>16</pointsize>
+												</font>
+											</property>
+											<property name="styleSheet">
+												<string notr="true">background-color: white; border-radius: 5px; padding: 5px;</string>
+											</property>
+											<property name="alignment">
+												<set>Qt::AlignCenter</set>
+											</property>
+										</widget>
+									</item>
+									<item>
+										<layout class="QHBoxLayout" name="difficultyLayout">
+											<item>
+												<widget class="QPushButton" name="difficulty1Btn">
+													<property name="text">
+														<string>一级</string>
+													</property>
+													<property name="minimumSize">
+														<size>
+															<width>100</width>
+															<height>60</height>
+														</size>
+													</property>
+													<property name="font">
+														<font>
+															<pointsize>16</pointsize>
+														</font>
+													</property>
+													<property name="styleSheet">
+														<string notr="true">background-color: #4CAF50; color: white; border-radius: 10px;</string>
+													</property>
+												</widget>
+											</item>
+											<item>
+												<widget class="QPushButton" name="difficulty2Btn">
+													<property name="text">
+														<string>二级</string>
+													</property>
+													<property name="minimumSize">
+														<size>
+															<width>100</width>
+															<height>60</height>
+														</size>
+													</property>
+													<property name="font">
+														<font>
+															<pointsize>16</pointsize>
+														</font>
+													</property>
+													<property name="styleSheet">
+														<string notr="true">background-color: #2196F3; color: white; border-radius: 10px;</string>
+													</property>
+												</widget>
+											</item>
+											<item>
+												<widget class="QPushButton" name="difficulty3Btn">
+													<property name="text">
+														<string>三级</string>
+													</property>
+													<property name="minimumSize">
+														<size>
+															<width>100</width>
+															<height>60</height>
+														</size>
+													</property>
+													<property name="font">
+														<font>
+															<pointsize>16</pointsize>
+														</font>
+													</property>
+													<property name="styleSheet">
+														<string notr="true">background-color: #FF9800; color: white; border-radius: 10px;</string>
+													</property>
+												</widget>
+											</item>
+										</layout>
+									</item>
+								</layout>
+							</widget>
+						</item>
+						<item>
+							<widget class="QWidget" name="presetModeWidget" native="true">
+								<property name="visible">
+									<bool>false</bool>
+								</property>
+								<layout class="QVBoxLayout" name="presetModeLayout">
+									<item>
+										<widget class="QLabel" name="presetModeLabel">
+											<property name="text">
+												<string>预设实验模式:</string>
+											</property>
+											<property name="font">
+												<font>
+													<pointsize>16</pointsize>
+												</font>
+											</property>
+											<property name="styleSheet">
+												<string notr="true">background-color: white; border-radius: 5px; padding: 5px;</string>
+											</property>
+											<property name="alignment">
+												<set>Qt::AlignCenter</set>
+											</property>
+										</widget>
+									</item>
+									<item>
+										<layout class="QHBoxLayout" name="presetOrderLayout">
+											<item>
+												<widget class="QPushButton" name="lowToHighBtn">
+													<property name="text">
+														<string>低→高难度</string>
+													</property>
+													<property name="minimumSize">
+														<size>
+															<width>140</width>
+															<height>50</height>
+														</size>
+													</property>
+													<property name="font">
+														<font>
+															<pointsize>14</pointsize>
+														</font>
+													</property>
+													<property name="styleSheet">
+														<string notr="true">background-color: #4CAF50; color: white; border-radius: 10px;</string>
+													</property>
+												</widget>
+											</item>
+											<item>
+												<widget class="QPushButton" name="highToLowBtn">
+													<property name="text">
+														<string>高→低难度</string>
+													</property>
+													<property name="minimumSize">
+														<size>
+															<width>140</width>
+															<height>50</height>
+														</size>
+													</property>
+													<property name="font">
+														<font>
+															<pointsize>14</pointsize>
+														</font>
+													</property>
+													<property name="styleSheet">
+														<string notr="true">background-color: #FF5722; color: white; border-radius: 10px;</string>
+													</property>
+												</widget>
+											</item>
+										</layout>
+									</item>
+									<item>
+										<layout class="QHBoxLayout" name="presetTimeLayout">
+											<item>
+												<widget class="QLabel" name="presetTimeLabel">
+													<property name="text">
+														<string>每个难度时长(秒):</string>
+													</property>
+													<property name="font">
+														<font>
+															<pointsize>14</pointsize>
+														</font>
+													</property>
+													<property name="styleSheet">
+														<string notr="true">background-color: white; border-radius: 5px; padding: 5px;</string>
+													</property>
+													<property name="alignment">
+														<set>Qt::AlignCenter</set>
+													</property>
+												</widget>
+											</item>
+											<item>
+												<widget class="QSpinBox" name="presetDurationSpinBox">
+													<property name="minimumSize">
+														<size>
+															<width>80</width>
+															<height>35</height>
+														</size>
+													</property>
+													<property name="font">
+														<font>
+															<pointsize>14</pointsize>
+														</font>
+													</property>
+													<property name="styleSheet">
+														<string notr="true">background-color: white; border-radius: 5px; padding: 5px; border: 2px solid #FF9800;</string>
+													</property>
+													<property name="alignment">
+														<set>Qt::AlignCenter</set>
+													</property>
+													<property name="minimum">
+														<number>30</number>
+													</property>
+													<property name="maximum">
+														<number>300</number>
+													</property>
+													<property name="value">
+														<number>60</number>
+													</property>
+												</widget>
+											</item>
+											<item>
+												<spacer name="presetHorizontalSpacer">
+													<property name="orientation">
+														<enum>Qt::Horizontal</enum>
+													</property>
+													<property name="sizeHint" stdset="0">
+														<size>
+															<width>40</width>
+															<height>20</height>
+														</size>
+													</property>
+												</spacer>
+											</item>
+										</layout>
+									</item>
+								</layout>
+							</widget>
 						</item>
 						<item>
 							<widget class="QPushButton" name="startBtn">

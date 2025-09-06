@@ -3,13 +3,10 @@
 
 #include <QObject>
 #include <QByteArray>
-#include <QVariantMap>
 #include <QVector>
-#include <QDebug>
+#include <QVariantMap>
+#include <QString>
 
-/**
- * @brief 数据解析器类 - 解析来自蓝牙设备的原始数据
- */
 class DataParser : public QObject
 {
     Q_OBJECT
@@ -17,54 +14,63 @@ class DataParser : public QObject
 public:
     explicit DataParser(QObject* parent = nullptr);
 
-    // 解析数据结构
-    struct ParsedData {
-        QString order_num;          // 序号
-        QVariantMap battery;        // 电池数据
-        QVector<int> video_data;    // 音频数据
-        QVector<QVector<int>> eeg_data;  // 脑电数据
-        bool is_fall;              // 跌倒标志
-        QVector<int> four_data;    // 四路数据
-        QVector<int> gravity_data; // 重力数据
-        QByteArray yuliu;          // 预留数据
-        int shine;                 // 闪烁值
-        quint8 jiaoyan;            // 校验值
-        QByteArray rawdata;        // 原始数据
-        bool valid;                // 数据有效标志
+    struct EEGChannelData {
+        QVector<int> fp1;  // FP1通道数据
+        QVector<int> fp2;  // FP2通道数据
+        QVector<int> events; // 事件标记数据
+
+        // 添加size()方法返回通道数量
+        int size() const {
+            return 2; // 固定返回2个通道（fp1和fp2）
+        }
+
+        // 添加数据点数量方法
+        int dataPointCount() const {
+            return fp1.size(); // 返回每个通道的数据点数量
+        }
     };
 
-public slots:
-    /**
-     * @brief 解析接收到的数据
-     * @param data 原始数据
-     * @return 解析后的数据结构
-     */
-    static ParsedData parseData(const QByteArray& data);
+    struct ParsedData {
+        bool valid;
+        QString order_num;
+        int battery;
+        QByteArray video_data;
+        QByteArray eeg_data;  // 原始EEG数据（70字节）
+        EEGChannelData parsed_eeg_data;  // 解析后的EEG数据
+        bool is_fall;
+        QByteArray four_data;
+        int gravity_data;
+        QByteArray yuliu;
+        QByteArray shine;
+        int jiaoyan;
+        QByteArray rawdata;
+        QString payload;  // 十六进制字符串表示
+    };
 
+    ParsedData parseData(const QByteArray& data);
+
+    // 添加静态方法版本，方便直接调用
+    static ParsedData parseDataStatic(const QByteArray& data);
+
+    // 创建单例实例方法
+    static DataParser& instance();
+    // ADC最大值：2^23 = 8388608
+    const int adcMaxVal = 8388608; // 2^23
+
+    // 基准电压和增益
+    const double baseVoltage = 4.5; // 基准电压
+    const int eegFP1Magnification = 12; // FP1通道放大倍数
+    const int eegFP2Magnification = 12; // FP2通道放大倍数
 private:
-    /**
-     * @brief 验证数据校验和
-     * @param data 数据
-     * @return 校验是否通过
-     */
-    static bool validateChecksum(const QByteArray& data);
+    EEGChannelData parseEEGChannelData(const QByteArray& eegData);
+    int parse24BitLittleEndian(const QByteArray& data, int start);
+	//补码转原码函数
+    int complement2Original(int rawData, int adcMaxVal);
+    // 补码转电压函数
+    double complementToVoltage(int rawData, int adcMaxVal, double baseVoltage, int gain);
 
-    /**
-     * @brief 字节数组转换为整数向量
-     * @param data 字节数据
-     * @param start 起始位置
-     * @param length 长度
-     * @return 整数向量
-     */
-    static QVector<int> bytesToIntVector(const QByteArray& data, int start, int length);
 
-    /**
-     * @brief 解析电池数据
-     * @param data 字节数据
-     * @param start 起始位置
-     * @return 电池数据映射
-     */
-    static QVariantMap parseBatteryData(const QByteArray& data, int start);
+
 };
 
 #endif // DATAPARSER_H

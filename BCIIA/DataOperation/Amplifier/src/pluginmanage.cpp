@@ -102,6 +102,7 @@ void PluginManage::loadPlugin(QString path)
             if(*amplifierdevice)
             {
                 this->name=name;
+				qDebug() << "加载插件成功" << name;
                 emit error(false);
             }
             else

@@ -19,6 +19,8 @@ public:
 signals:
     void chartDataFinish(QList<double>);
     void rawDataFinished(QList<QList<double>>);
+    void preproDatafinished(QList<double>);
+    //void rawDataFinished(QList<double>);
     void locallabelFinished(QList<uint8_t>);
 private:
     bool status;

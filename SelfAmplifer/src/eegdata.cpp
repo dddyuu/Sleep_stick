@@ -16,6 +16,7 @@ void EEGData::clear()
 void EEGData::append(QList<double> chart_data,QList<double> raw_data)
 {
     mutex.lock();
+    // qDebug() << "EEGData: appending data, chart_data size:" << chart_data;
     this->chart_data.append(chart_data);
     this->raw_data.append(raw_data);
     mutex.unlock();
@@ -38,7 +39,6 @@ QList<QList<double>> EEGData::getChartData(int channel_num)
 
 QList<double> EEGData::getRawData()
 {
-
     mutex.lock();
     QList<double> data=this->raw_data;
     raw_data.clear();

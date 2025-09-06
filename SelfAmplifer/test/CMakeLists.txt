@@ -9,7 +9,10 @@ set(CMAKE_AUTORCC ON)
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-
+if(MSVC)
+    add_compile_options("/source-charset:utf-8")
+    add_compile_options("/execution-charset:utf-8")
+endif()
 find_package(Qt5 COMPONENTS Core widgets Network Bluetooth REQUIRED)
 
 add_executable(${PROJECT_NAME}   main.cpp )

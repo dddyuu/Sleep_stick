@@ -84,5 +84,5 @@ void FatigueResWidget::positionRegisterInfo()
 //}
 void FatigueResWidget::on_fatigueClass_clicked()
 {
-    //显示疲劳等级
+    //显示高负荷等级
 }

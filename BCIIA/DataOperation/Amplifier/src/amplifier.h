@@ -38,6 +38,7 @@ private slots:
 signals:
     void disconnected();
     void chartDataFinished(QList<double>);
+    void preproDatafinished(QList<double>);
     void rawDataFinished(QList<QList<double>>);
     void locallabelFinished(QList<uint8_t>);
     void error(QString);

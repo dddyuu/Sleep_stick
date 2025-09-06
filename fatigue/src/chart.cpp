@@ -49,7 +49,7 @@ void Chart::init() {
     QHBoxLayout* mainLayout = new QHBoxLayout();// 创建主水平布局
 
     chart1 = new QChart();
-    chart1->setTitle("疲劳状态监测");
+    chart1->setTitle("认知状态监测");
     //初始化线条
     series = new QLineSeries;
     series->setName("实时数据");
@@ -81,11 +81,20 @@ void Chart::init() {
     axisY->setMin(0);
     axisY->setMax(100);
     axisY->setStartValue(0);
-    axisY->append("清醒", 50);
-    axisY->append("疲劳", 100);
+    axisY->append("低负荷", 25);
+    axisY->append("中负荷", 75);
+    axisY->append("高负荷", 90);
+    axisY->setGridLineVisible(false); // 不要自动画网格
     chart1->addAxis(axisY, Qt::AlignLeft);
     series->attachAxis(axisY);
     series_local->attachAxis(axisY);
+
+    // 再加一个数值型坐标轴（只负责画两根线）
+    QValueAxis* axisY2 = new QValueAxis();
+    axisY2->setRange(0, 100);
+    axisY2->setTickCount(0);          // 不显示普通刻度
+    axisY2->setLabelsVisible(false);  // 不显示数字
+    chart1->addAxis(axisY2, Qt::AlignRight);
 
     // 添加图例
     chart1->legend()->setVisible(true);
@@ -261,8 +270,8 @@ void Chart::initPieChart() {
     compactLayout->setContentsMargins(0, 0, 0, 0);
     compactLayout->setSpacing(5);
 
-    // 创建并设置清醒百分比标签
-    clearPercentageLabel = new QLabel("清醒: 100%");
+    // 创建并设置低负荷百分比标签
+    clearPercentageLabel = new QLabel("低负荷: 100%");
     clearPercentageLabel->setAlignment(Qt::AlignCenter);
     QFont clearFont = clearPercentageLabel->font();
     clearFont.setPointSize(18);
@@ -270,8 +279,8 @@ void Chart::initPieChart() {
     clearPercentageLabel->setFont(clearFont);
     clearPercentageLabel->setStyleSheet("color: #2ecc71; padding: 0;");
 
-    // 创建并设置疲劳百分比标签
-    fatiguePercentageLabel = new QLabel("疲劳: 0%");
+    // 创建并设置高负荷百分比标签
+    fatiguePercentageLabel = new QLabel("高负荷: 0%");
     fatiguePercentageLabel->setAlignment(Qt::AlignCenter);
     QFont fatigueFont = fatiguePercentageLabel->font();
     fatigueFont.setPointSize(18);
@@ -285,8 +294,8 @@ void Chart::initPieChart() {
 
     // 创建饼图系列
     pieSeries = new QPieSeries();
-    pieSeries->append("清醒", 1);
-    pieSeries->append("疲劳", 0);
+    pieSeries->append("低负荷", 1);
+    pieSeries->append("高负荷", 0);
 
     // 设置切片颜色
     if (pieSeries->slices().size() >= 2) {
@@ -369,18 +378,18 @@ void Chart::updatePieChart() {
         qreal fatiguePercent = (static_cast<qreal>(fatigueCount) / total) * 100.0;
 
         // 更新标签文本
-        clearPercentageLabel->setText(QString("清醒: %1%").arg(clearPercent, 0, 'f', 1));
-        fatiguePercentageLabel->setText(QString("疲劳: %1%").arg(fatiguePercent, 0, 'f', 1));
+        clearPercentageLabel->setText(QString("低负荷: %1%").arg(clearPercent, 0, 'f', 1));
+        fatiguePercentageLabel->setText(QString("高负荷: %1%").arg(fatiguePercent, 0, 'f', 1));
     }
     else {
-        clearPercentageLabel->setText("清醒: 0%");
-        fatiguePercentageLabel->setText("疲劳: 0%");
+        clearPercentageLabel->setText("低负荷: 0%");
+        fatiguePercentageLabel->setText("高负荷: 0%");
     }
 
     // 更新饼图数据
     pieSeries->clear();
-    pieSeries->append("清醒", clearCount);
-    pieSeries->append("疲劳", fatigueCount);
+    pieSeries->append("低负荷", clearCount);
+    pieSeries->append("高负荷", fatigueCount);
 
     // 设置切片颜色
     if (pieSeries->slices().size() >= 2) {
@@ -400,12 +409,32 @@ void Chart::receiveDatas() {
     if (!isPlottingEnabled) {
         // 存储数据但不更新图表
         QDateTime currentTime = QDateTime::currentDateTime();
-        qreal value = (result == 0) ? 25 : 75;
+        //qreal value = (result == 0) ? 25 : 75;
+        qreal value;
+        if (result == 0) {
+            value = 25;
+        }
+        else if (result == 1) {
+            value = 55;
+        }
+        else {
+            value = 85;
+        }
         dataPoints.append({currentTime, value});
         // 同时存储本地标签数据
         // 添加条件：仅当本地数据有效(!= -1)时存储
         if (localresult != static_cast<uint8_t>(-1)) {
-            qreal localvalue = (localresult == 0) ? 30 : 80;
+            //qreal localvalue = (localresult == 0) ? 30 : 80;
+            qreal localvalue;
+            if (localresult == 0) {
+                localvalue = 30;
+            }
+            else if (localresult == 1) {
+                localvalue = 60;
+            }
+            else {
+                localvalue = 90;
+            }
             localDataPoints.append({ currentTime, localvalue });
         }
         // qDebug()<<"存储本地标签数据"<<localLabelData.isEmpty();
@@ -426,7 +455,16 @@ void Chart::receiveDatas() {
     // 创建数据点
     QPair<QDateTime, qreal> point;
     point.first = currentTime;
-    point.second = (result == 0) ? 25 : 75;
+    //point.second = (result == 0) ? 25 : 75;
+    if (result == 0) {
+        point.second = 25;
+    }
+    else if (result == 1) {
+		point.second = 55;
+    }
+    else {
+		point.second = 85;
+    }
     // 添加到数据列表
     dataPoints.append(point);
 
@@ -434,7 +472,16 @@ void Chart::receiveDatas() {
     if (localresult != static_cast<uint8_t>(-1)) {
         QPair<QDateTime, qreal> localPoint;
         localPoint.first = currentTime;
-        localPoint.second = (localresult == 0) ? 30 : 80;
+        //localPoint.second = (localresult == 0) ? 30 : 80;
+        if (localresult == 0) {
+            localPoint.second = 30;
+        }
+        else if (localresult == 1) {
+            localPoint.second = 60;
+        }
+        else {
+            localPoint.second = 90;
+        }
         localDataPoints.append(localPoint);
     }
     // if (!localLabelData.isEmpty() ) {
@@ -540,6 +587,6 @@ void Chart::connectdata(quint8 data, uint8_t localdata) {
     
     localresult = localdata;
     
-    qDebug()<<"本地数据标签:"<<localresult;
+    //qDebug()<<"本地数据标签:"<<localresult;
     receiveDatas();
 }

@@ -84,12 +84,23 @@ void BluetoothDeviceController::connectToDevice(const QBluetoothDeviceInfo& devi
     // 创建低功耗控制器
     m_controller = QLowEnergyController::createCentral(device, this);
 
+    // 【修改1】添加更完整的错误处理
+    connect(m_controller, QOverload<QLowEnergyController::Error>::of(&QLowEnergyController::error),
+        [this](QLowEnergyController::Error error) {
+            qWarning() << "QLowEnergyController error:" << error;
+            emit errorOccurred("蓝牙控制器错误: " + QString::number(static_cast<int>(error)));
+        });
+
     connect(m_controller, &QLowEnergyController::connected,
         this, &BluetoothDeviceController::onControllerConnected);
     connect(m_controller, &QLowEnergyController::disconnected,
         this, &BluetoothDeviceController::onControllerDisconnected);
     connect(m_controller, &QLowEnergyController::serviceDiscovered,
         this, &BluetoothDeviceController::onServiceDiscovered);
+
+    // 【修改2】添加服务发现完成的处理
+    connect(m_controller, &QLowEnergyController::discoveryFinished,
+        this, &BluetoothDeviceController::onServiceDiscoveryFinished);
 
     // 开始连接
     m_controller->connectToDevice();
@@ -100,14 +111,26 @@ void BluetoothDeviceController::disconnectDevice()
 {
     m_receivingData = false;
 
+    // 【修改3】先停止通知再删除服务
     if (m_service) {
-        delete m_service;
+        if (m_service->state() == QLowEnergyService::ServiceDiscovered) {
+            QLowEnergyCharacteristic rxChar = m_service->characteristic(m_rxCharUuid);
+            if (rxChar.isValid()) {
+                QLowEnergyDescriptor notification = rxChar.descriptor(QBluetoothUuid::ClientCharacteristicConfiguration);
+                if (notification.isValid()) {
+                    m_service->writeDescriptor(notification, QByteArray::fromHex("0000"));
+                }
+            }
+        }
+        m_service->deleteLater();
         m_service = nullptr;
     }
 
     if (m_controller) {
-        m_controller->disconnectFromDevice();
-        delete m_controller;
+        if (m_controller->state() != QLowEnergyController::UnconnectedState) {
+            m_controller->disconnectFromDevice();
+        }
+        m_controller->deleteLater();
         m_controller = nullptr;
     }
 
@@ -128,6 +151,12 @@ void BluetoothDeviceController::startReceiving()
         return;
     }
 
+    // 确保服务状态正确
+    if (m_service->state() != QLowEnergyService::ServiceDiscovered) {
+        emit errorOccurred("服务未就绪");
+        return;
+    }
+
     // 查找接收特征
     QLowEnergyCharacteristic rxChar = m_service->characteristic(m_rxCharUuid);
     if (!rxChar.isValid()) {
@@ -135,15 +164,50 @@ void BluetoothDeviceController::startReceiving()
         return;
     }
 
+    qDebug() << "RX特征详细信息:";
+    qDebug() << "  UUID:" << rxChar.uuid().toString();
+    qDebug() << "  属性:" << QString::number(rxChar.properties(), 16);
+    qDebug() << "  描述符数量:" << rxChar.descriptors().size();
+
+    // 检查特征属性 - 支持Notify或Indicate
+    if (!(rxChar.properties() & (QLowEnergyCharacteristic::Notify | QLowEnergyCharacteristic::Indicate))) {
+        emit errorOccurred("接收特征不支持通知或指示");
+        return;
+    }
+
+    //添加描述符写入完成的处理
+    connect(m_service, &QLowEnergyService::descriptorWritten,
+        this, &BluetoothDeviceController::onDescriptorWritten, Qt::UniqueConnection);
+
     // 启用通知
     QLowEnergyDescriptor notification = rxChar.descriptor(QBluetoothUuid::ClientCharacteristicConfiguration);
     if (notification.isValid()) {
-        m_service->writeDescriptor(notification, QByteArray::fromHex("0100"));
-        m_receivingData = true;
-        qDebug() << "开始接收数据";
+        qDebug() << "找到CCCD描述符，正在启用通知...";
+        qDebug() << "CCCD UUID:" << notification.uuid().toString();
+
+        // 根据特征属性选择通知或指示
+        QByteArray value;
+        if (rxChar.properties() & QLowEnergyCharacteristic::Notify) {
+            value = QByteArray::fromHex("0100"); // 启用通知
+            qDebug() << "启用Notify";
+        }
+        else if (rxChar.properties() & QLowEnergyCharacteristic::Indicate) {
+            value = QByteArray::fromHex("0200"); // 启用指示
+            qDebug() << "启用Indicate";
+        }
+
+        m_service->writeDescriptor(notification, value);
+        // 注意：这里不立即设置m_receivingData，等待写入完成后再设置
     }
     else {
-        emit errorOccurred("无法启用通知");
+        emit errorOccurred("无法找到CCCD描述符");
+
+        // 【新增】列出所有可用的描述符进行调试
+        qDebug() << "可用描述符:";
+        for (const auto& desc : rxChar.descriptors()) {
+            qDebug() << "  描述符UUID:" << desc.uuid().toString();
+            qDebug() << "  描述符名称:" << desc.name();
+        }
     }
 }
 
@@ -151,7 +215,7 @@ void BluetoothDeviceController::stopReceiving()
 {
     if (!m_receivingData) return;
 
-    if (m_service) {
+    if (m_service && m_service->state() == QLowEnergyService::ServiceDiscovered) {
         QLowEnergyCharacteristic rxChar = m_service->characteristic(m_rxCharUuid);
         if (rxChar.isValid()) {
             QLowEnergyDescriptor notification = rxChar.descriptor(QBluetoothUuid::ClientCharacteristicConfiguration);
@@ -170,6 +234,12 @@ void BluetoothDeviceController::sendCommand(CommandType cmdType)
 {
     if (!m_service || m_connectionState != Connected) {
         emit errorOccurred("设备未连接");
+        return;
+    }
+
+    // 确保服务状态正确
+    if (m_service->state() != QLowEnergyService::ServiceDiscovered) {
+        emit errorOccurred("服务未就绪");
         return;
     }
 
@@ -216,12 +286,12 @@ void BluetoothDeviceController::stopTcpServer()
         // 断开所有客户端连接
         for (auto client : m_tcpClients) {
             client->disconnectFromHost();
-            delete client;
+            client->deleteLater();
         }
         m_tcpClients.clear();
 
         m_tcpServer->close();
-        delete m_tcpServer;
+        m_tcpServer->deleteLater();
         m_tcpServer = nullptr;
         qDebug() << "TCP服务器已停止";
     }
@@ -261,37 +331,154 @@ void BluetoothDeviceController::onServiceDiscovered(const QBluetoothUuid& servic
 {
     qDebug() << "发现服务:" << serviceUuid.toString();
 
-    // 创建服务对象（这里假设使用标准的Nordic UART服务UUID）
+    // 只处理目标服务，避免创建过多服务对象
     QBluetoothUuid uartServiceUuid(QString("6e400001-b5a3-f393-e0a9-e50e24dcca9e"));
     if (serviceUuid == uartServiceUuid) {
+        qDebug() << "找到目标UART服务";
         m_service = m_controller->createServiceObject(serviceUuid, this);
-        if (m_service) {
-            connect(m_service, &QLowEnergyService::stateChanged,
-                this, &BluetoothDeviceController::onServiceStateChanged);
-            connect(m_service, &QLowEnergyService::characteristicChanged,
-                this, &BluetoothDeviceController::onCharacteristicChanged);
-
-            m_service->discoverDetails();
+        if (!m_service) {
+            qWarning() << "无法创建服务对象:" << serviceUuid.toString();
+            emit errorOccurred("无法创建服务对象");
+            return;
         }
+
+        connect(m_service, &QLowEnergyService::stateChanged,
+            this, &BluetoothDeviceController::onServiceStateChanged);
+
+        //数据连接
+        connect(m_service, &QLowEnergyService::characteristicChanged,
+            this, &BluetoothDeviceController::onCharacteristicChanged);
+
+        //添加更多服务信号连接
+        connect(m_service, &QLowEnergyService::characteristicRead,
+            this, &BluetoothDeviceController::onCharacteristicRead);
+        connect(m_service, &QLowEnergyService::characteristicWritten,
+            this, &BluetoothDeviceController::onCharacteristicWritten);
+        connect(m_service, &QLowEnergyService::descriptorRead,
+            this, &BluetoothDeviceController::onDescriptorRead);
+        connect(m_service, &QLowEnergyService::descriptorWritten,
+            this, &BluetoothDeviceController::onDescriptorWritten);
+
+        // 添加错误处理
+        connect(m_service, QOverload<QLowEnergyService::ServiceError>::of(&QLowEnergyService::error),
+            [this](QLowEnergyService::ServiceError error) {
+                qWarning() << "服务错误:" << error;
+                emit errorOccurred("服务错误: " + QString::number(static_cast<int>(error)));
+            });
+
+        // 发现服务详细信息
+        m_service->discoverDetails();
+    }
+}
+
+// 【修改9】添加服务发现完成处理函数
+void BluetoothDeviceController::onServiceDiscoveryFinished()
+{
+    qDebug() << "服务发现完成";
+    if (!m_service) {
+        emit errorOccurred("未找到目标服务");
+        disconnectDevice();
     }
 }
 
 void BluetoothDeviceController::onServiceStateChanged(QLowEnergyService::ServiceState state)
 {
+    qDebug() << "服务状态变化:" << state;
+
     if (state == QLowEnergyService::ServiceDiscovered) {
         qDebug() << "服务详细信息发现完成";
+
+        // 【修改10】验证特征是否存在
+        QLowEnergyCharacteristic rxChar = m_service->characteristic(m_rxCharUuid);
+        QLowEnergyCharacteristic txChar = m_service->characteristic(m_txCharUuid);
+
+        if (!rxChar.isValid()) {
+            emit errorOccurred("未找到RX特征");
+            return;
+        }
+
+        if (!txChar.isValid()) {
+            emit errorOccurred("未找到TX特征");
+            return;
+        }
+
+        qDebug() << "RX特征属性:" << rxChar.properties();
+        qDebug() << "TX特征属性:" << txChar.properties();
+
         m_connectionState = Connected;
         emit connectionStateChanged(m_connectionState);
 
-        // 自动开始接收数据
-        startReceiving();
+        // 【修改11】延迟启动接收，确保连接稳定
+        QTimer::singleShot(1000, this, [this]() {
+            qDebug() << "自动开始接收数据";
+            startReceiving();
+            });
+    }
+    else if (state == QLowEnergyService::InvalidService) {
+        emit errorOccurred("服务无效");
+        disconnectDevice();
+    }
+}
+
+// 【新增】添加所有服务操作的回调函数
+void BluetoothDeviceController::onCharacteristicRead(const QLowEnergyCharacteristic& characteristic, const QByteArray& value)
+{
+    qDebug() << "特征读取完成 - UUID:" << characteristic.uuid().toString() << "值:" << value.toHex(' ');
+}
+
+void BluetoothDeviceController::onCharacteristicWritten(const QLowEnergyCharacteristic& characteristic, const QByteArray& newValue)
+{
+    qDebug() << "特征写入完成 - UUID:" << characteristic.uuid().toString() << "值:" << newValue.toHex(' ');
+}
+
+void BluetoothDeviceController::onDescriptorRead(const QLowEnergyDescriptor& descriptor, const QByteArray& value)
+{
+    qDebug() << "描述符读取完成 - UUID:" << descriptor.uuid().toString() << "值:" << value.toHex(' ');
+}
+
+void BluetoothDeviceController::onDescriptorWritten(const QLowEnergyDescriptor& descriptor, const QByteArray& newValue)
+{
+    qDebug() << "描述符写入完成 - UUID:" << descriptor.uuid().toString() << "值:" << newValue.toHex(' ');
+
+    // 检查是否是CCCD描述符的写入
+    if (descriptor.uuid() == QBluetoothUuid::ClientCharacteristicConfiguration) {
+        QByteArray expectedNotify = QByteArray::fromHex("0100");
+        QByteArray expectedIndicate = QByteArray::fromHex("0200");
+
+        if (newValue == expectedNotify || newValue == expectedIndicate) {
+            qDebug() << "通知订阅成功！";
+            m_receivingData = true;
+
+            // 【新增】尝试主动读取一次特征值来测试连接
+            QLowEnergyCharacteristic rxChar = m_service->characteristic(m_rxCharUuid);
+            if (rxChar.isValid() && (rxChar.properties() & QLowEnergyCharacteristic::Read)) {
+                qDebug() << "尝试主动读取RX特征...";
+                m_service->readCharacteristic(rxChar);
+            }
+
+            // 【修改14】立即发送启动命令来激活设备
+            QTimer::singleShot(1000, this, [this]() {
+                qDebug() << "发送启动命令来激活设备...";
+                sendCommand(StartCommand);
+                });
+        }
+        else {
+            qWarning() << "通知订阅可能失败，写入值:" << newValue.toHex(' ');
+        }
     }
 }
 
 void BluetoothDeviceController::onCharacteristicChanged(const QLowEnergyCharacteristic& characteristic,
     const QByteArray& newValue)
 {
+    // 详细信息
+    // qDebug() << "特征变化 - UUID:" << characteristic.uuid().toString();
+    // qDebug() << "期望的RX UUID:" << m_rxCharUuid.toString();
+    // qDebug() << "数据长度:" << newValue.length();
+    // qDebug() << "接收状态:" << m_receivingData;
+
     if (characteristic.uuid() == m_rxCharUuid && m_receivingData) {
+        // qDebug() << "处理接收到的数据:" << newValue.toHex(' ').toUpper();
         processReceivedData(newValue);
     }
 }
@@ -337,18 +524,48 @@ void BluetoothDeviceController::processReceivedData(const QByteArray& data)
     // 将新数据添加到缓冲区
     m_dataBuffer.append(data);
 
+    // 寻找帧头标识
+    const QByteArray FRAME_HEADER = QByteArray::fromHex("41495290"); // 帧头
+
+    // qDebug() << "当前缓冲区大小:" << m_dataBuffer.size() << "数据:" << m_dataBuffer.left(20).toHex(' ').toUpper();
+
     // 处理缓冲区中的完整数据包
     while (m_dataBuffer.length() >= EXPECTED_LENGTH) {
+        // 查找帧头
+        int headerIndex = m_dataBuffer.indexOf(FRAME_HEADER);
+        if (headerIndex == -1) {
+            // 没有找到帧头，保留最后几个字节以防帧头被分割
+            if (m_dataBuffer.length() > FRAME_HEADER.length()) {
+                m_dataBuffer.remove(0, m_dataBuffer.length() - FRAME_HEADER.length() + 1);
+            }
+            break;
+        }
+
+        // 如果帧头不在开始位置，移除之前的无效数据
+        if (headerIndex > 0) {
+            m_dataBuffer.remove(0, headerIndex);
+        }
+
+        // 检查是否有完整的数据包
+        if (m_dataBuffer.length() < EXPECTED_LENGTH) {
+            break;
+        }
+
         QByteArray packet = m_dataBuffer.left(EXPECTED_LENGTH);
         m_dataBuffer.remove(0, EXPECTED_LENGTH);
 
+        // qDebug() << "处理完整数据包，长度:" << packet.length();
+        // qDebug() << "数据包前20字节:" << packet.left(20).toHex(' ').toUpper();
+
         // 解析数据
-        DataParser::ParsedData parsedData = DataParser::parseData(packet);
+        //DataParser::ParsedData parsedData = DataParser::parseData(packet);
+        DataParser::ParsedData parsedData = DataParser::parseDataStatic(packet);
         if (parsedData.valid) {
+            // qDebug() << "数据解析成功！序号:" << parsedData.order_num;
             emit dataReceived(parsedData);
         }
         else {
-            qWarning() << "数据解析失败";
+            qDebug() << "数据解析失败，丢弃此包";
         }
     }
 }
@@ -357,15 +574,19 @@ QByteArray BluetoothDeviceController::getCommandBytes(CommandType cmdType)
 {
     QByteArray command;
 
+    // 命令格式
     switch (cmdType) {
     case StartCommand:
-        command = QByteArray::fromHex("010203"); // 示例开始命令
+        // Python: bytes([0x48, 0x4E, 0x55, 0x9F, 0x03, 0x00, 0x00, 0x00])
+        command = QByteArray::fromHex("484E559F03000000");
         break;
     case StopCommand:
-        command = QByteArray::fromHex("040506"); // 示例停止命令
+        // Python: bytes([0x48, 0x4E, 0x55, 0x9F, 0x04, 0x00, 0x00, 0x00])
+        command = QByteArray::fromHex("484E559F04000000");
         break;
     case StatusCommand:
-        command = QByteArray::fromHex("070809"); // 示例状态查询命令
+        // Python: bytes([0x48, 0x4E, 0x55, 0x9F, 0x05, 0x08, 0x00, 0x00])
+        command = QByteArray::fromHex("484E559F05080000");
         break;
     default:
         break;
