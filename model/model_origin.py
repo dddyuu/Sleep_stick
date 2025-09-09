@@ -395,9 +395,9 @@ class FineFeatureExtractor(nn.Module):
             nn.Linear(256, embed_dim)
         )
         self.plm = PhaseLockingMatrix()
-        self.SGCN1 = Chebynet(xdim=[BATCH_SIZE, 2, 250], K=2, num_out=125, dropout=0.)
-        self.SGCN2 = Chebynet(xdim=[BATCH_SIZE, 2, 250], K=2, num_out=100, dropout=0.)
-        self.SGCN3 = Chebynet(xdim=[BATCH_SIZE, 2, 250], K=2, num_out=25, dropout=0.)
+        self.SGCN1 = Chebynet(xdim=[BATCH_SIZE, 2, 500], K=2, num_out=125, dropout=0.)
+        self.SGCN2 = Chebynet(xdim=[BATCH_SIZE, 2, 500], K=2, num_out=100, dropout=0.)
+        self.SGCN3 = Chebynet(xdim=[BATCH_SIZE, 2, 500], K=2, num_out=25, dropout=0.)
 
     def _get_feature_size(self, n_times):
         times_after_conv1 = (n_times // 4)
@@ -582,3 +582,16 @@ def convert_to_original_labels_2(coarse_preds, fine_preds):
     original_preds[coarse_preds == 1] = 2
 
     return original_preds
+
+
+
+if __name__ == "__main__":
+    model = HierarchicalCrossSubModel(n_channels=2, n_times=500, embed_dim=64)
+    x = torch.randn(128, 2, 500)
+    coarse_out_1, fine_out_1, coarse_out_2, fine_out_2, domain_out, fine_feat = model(x)
+    print(coarse_out_1.shape)  # (128, 2)
+    print(fine_out_1.shape)    # (128, 2)
+    print(coarse_out_2.shape)  # (128, 2)
+    print(fine_out_2.shape)    # (128, 2)
+    print(domain_out.shape)    # (128, 1)
+    print(fine_feat.shape)     # (128, 128)

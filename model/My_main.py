@@ -8,6 +8,10 @@ from datetime import datetime
 import traceback
 import numpy as np
 
+from scipy.io import savemat
+import numpy as np
+from scipy.io import loadmat
+from data_trainer import *
 # 配置日志
 logging.basicConfig(
     level=logging.INFO,
@@ -161,10 +165,12 @@ class EEGDataReceiver:
                     # 预处理数据
                     try:
                         preprocessed_data = preprocess_data(data_for_classification)
-                        logging.info(f"预处理后数据形状: {preprocessed_data.shape}")
+                        logging.info(f"不预处理后数据形状: {preprocessed_data.shape}")
 
                         # 进行分类预测
+                        logging.info(f"不进行预处理-数据形状: {preprocessed_data.shape}")
                         label = load_model_weights_predict(self.current_model_path, preprocessed_data)[0]
+                        # label = load_model_weights_predict(self.current_model_path, preprocessed_data)[0]
 
                         logging.info(f"★ 实时分类结果: {label} (模型: {os.path.basename(self.current_model_path)})")
 
@@ -479,7 +485,10 @@ class EEGDataReceiver:
                 # 步骤1: 预处理EEG数据 - 保持原有
                 try:
                     logging.info(f"[线程{thread_id}] 步骤1: 预处理EEG数据")
+                    print("\n准备.mat文件数据...")
+
                     preprocess_eeg(input_mat_file, output_mat_file, downsample_freq=250)
+
                     logging.info(f"[线程{thread_id}] 步骤1完成: EEG预处理")
                 except Exception as e:
                     logging.error(f"[线程{thread_id}] 步骤1失败 - EEG预处理错误: {e}")
@@ -494,6 +503,7 @@ class EEGDataReceiver:
                 try:
                     logging.info(f"[线程{thread_id}] 步骤2: 转换为numpy格式")
                     save_to_npy(output_mat_file, output_npy_data, output_npy_label)
+
                     logging.info(f"[线程{thread_id}] 步骤2完成: numpy转换")
                 except Exception as e:
                     logging.error(f"[线程{thread_id}] 步骤2失败 - numpy转换错误: {e}")
@@ -507,8 +517,16 @@ class EEGDataReceiver:
                 # 步骤3: 训练模型 - 保持原有
                 try:
                     logging.info(f"[线程{thread_id}] 步骤3: 训练模型")
-                    train_loader, val_loader = get_data_loaders(output_npy_data, output_npy_label, batch_size=128)
-                    train_and_save_model(train_loader, val_loader, output_model_file)
+                    # train_loader, val_loader = get_data_loaders(output_npy_data, output_npy_label, batch_size=128)
+                    # train_and_save_model(train_loader, val_loader, output_model_file)
+                    train_npy_data_path = "D:/SubEEG/data/dddxl.npy"
+                    # test_npy_data_path = "D:/SubEEG/data/grr.npy"
+                    train_npy_label = "D:/SubEEG/label/dddxl.npy"
+                    # test_npy_label = "D:/SubEEG/label/grr.npy"
+                    # model_path = "D:/SubEEG/model/grr.pth"
+                    train_loder, test_loder = Pget_data_loaders(train_npy_data_path, train_npy_label,
+                                                                output_npy_data, output_npy_label)
+                    train_and_save_model(train_loder, test_loder, output_model_file)
                     logging.info(f"[线程{thread_id}] 步骤3完成: 模型训练")
 
                     # 训练完成后设置标志

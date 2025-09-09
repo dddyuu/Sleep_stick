@@ -6,6 +6,7 @@ from model_origin import *
 from torch.utils.data import TensorDataset, DataLoader
 from sklearn.linear_model import LogisticRegression
 
+
 # 模型超参数
 EMBED_DIM = 64
 DROPOUT = 0.5
@@ -235,6 +236,182 @@ def get_data_loaders(data_path, label_path, batch_size=128):
         traceback.print_exc()
         raise
 
+def Pget_data_loaders(Train_data_path, Train_label_path,Test_data_path,Test_label_path, batch_size=128):
+    try:
+        #加载训练数据
+        train_data = np.load(Train_data_path)
+        train_original_labels = np.load(Train_label_path)
+
+        print(f"原始数据形状: {train_data.shape}")
+        print(f"原始标签形状: {train_original_labels.shape}")
+        print(f"标签分布: {np.bincount(train_original_labels)}")
+
+        # 验证数据完整性
+        if len(train_data) == 0 or len(train_original_labels) == 0:
+            raise ValueError("数据或标签为空")
+
+        if len(train_data) != len(train_original_labels):
+            raise ValueError(f"数据和标签长度不匹配: {len(train_data)} vs {len(train_original_labels)}")
+
+        # 检查标签的唯一值
+        unique_labels = np.unique(train_original_labels)
+        print(f"唯一标签: {unique_labels}")
+
+        if len(unique_labels) < 2:
+            raise ValueError(f"标签类别不足，只有 {len(unique_labels)} 类")
+
+
+        # 按类别分组数据
+        class_0_indices = np.where(train_original_labels == 0)[0]
+        class_1_indices = np.where(train_original_labels == 1)[0]
+        class_2_indices = np.where(train_original_labels == 2)[0]
+
+        print(f"类别0样本数: {len(class_0_indices)}")
+        print(f"类别1样本数: {len(class_1_indices)}")
+        print(f"类别2样本数: {len(class_2_indices)}")
+        # 加载验证数据
+        Test_data = np.load(Test_data_path)
+        Test_original_labels = np.load(Test_label_path)
+
+        print(f"验证原始数据形状: {Test_data.shape}")
+        print(f"验证原始标签形状: {Test_original_labels.shape}")
+        print(f"验证标签分布: {np.bincount(Test_original_labels)}")
+
+        # 验证数据完整性
+        if len(Test_data) == 0 or len(Test_original_labels) == 0:
+            raise ValueError("验证数据或标签为空")
+
+        if len(Test_data) != len(Test_original_labels):
+            Test_original_labels = Test_original_labels[:len(Test_data)]
+            # raise ValueError(f"验证数据和标签长度不匹配: {len(Test_data)} vs {len(Test_original_labels)}")
+
+        # 检查标签的唯一值
+        unique_labels = np.unique(Test_original_labels)
+        print(f"验证唯一标签: {unique_labels}")
+
+        if len(unique_labels) < 2:
+            raise ValueError(f"验证标签类别不足，只有 {len(unique_labels)} 类")
+
+        # 按类别分组数据
+        class_0_indices = np.where(train_original_labels == 0)[0]
+        class_1_indices = np.where(train_original_labels == 1)[0]
+        class_2_indices = np.where(train_original_labels == 2)[0]
+        #验证类别分组数据
+        test_class_0_indices = np.where(Test_original_labels == 0)[0]
+        test_class_1_indices = np.where(Test_original_labels == 1)[0]
+        test_class_2_indices = np.where(Test_original_labels == 2)[0]
+
+        print(f"类别0样本数: {len(class_0_indices)}")
+        print(f"类别1样本数: {len(class_1_indices)}")
+        print(f"类别2样本数: {len(class_2_indices)}")
+
+        print(f"验证类别0样本数: {len(test_class_0_indices)}")
+        print(f"验证类别1样本数: {len(test_class_1_indices)}")
+        print(f"验证类别2样本数: {len(test_class_2_indices)}")
+
+        # 检查每个类别是否有足够的样本进行分割
+        min_samples_per_class = 10  # 每类至少需要10个样本
+
+        if len(class_0_indices) < min_samples_per_class:
+            print(f"警告: 类别0样本数不足 ({len(class_0_indices)})，使用全部数据")
+        if len(class_1_indices) < min_samples_per_class:
+            print(f"警告: 类别1样本数不足 ({len(class_1_indices)})，使用全部数据")
+        if len(class_2_indices) < min_samples_per_class:
+            print(f"警告: 类别2样本数不足 ({len(class_2_indices)})，使用全部数据")
+
+        # 合并训练和测试索引
+        train_indices = np.concatenate([class_0_indices, class_1_indices, class_2_indices])
+        test_indices = np.concatenate([test_class_0_indices, test_class_1_indices, test_class_2_indices])
+
+        print(f"训练集索引数量: {len(train_indices)}")
+        print(f"测试集索引数量: {len(test_indices)}")
+
+        # 如果测试集为空，从训练集中分出一部分作为测试集
+        if len(test_indices) == 0:
+            print("测试集为空，从训练集中分出一部分")
+            np.random.shuffle(train_indices)
+            split_point = max(1, len(train_indices) // 5)  # 20%作为测试集
+            test_indices = train_indices[:split_point]
+            train_indices = train_indices[split_point:]
+            print(f"重新分割后 - 训练集: {len(train_indices)}, 测试集: {len(test_indices)}")
+
+        # 确保训练集不为空
+        if len(train_indices) == 0:
+            raise ValueError("训练集为空，无法进行训练")
+
+        # 提取训练和测试数据
+        train_data = train_data[train_indices]
+        train_original_labels = train_original_labels[train_indices]
+        test_data = Test_data[test_indices]
+        test_original_labels = Test_original_labels[test_indices]
+
+        print(f"最终训练数据形状: {train_data.shape}")
+        print(f"最终测试数据形状: {test_data.shape}")
+        print(f"训练标签分布: {np.bincount(train_original_labels)}")
+        print(f"测试标签分布: {np.bincount(test_original_labels)}")
+
+        # 创建粗分类标签
+        train_coarse_labels_1 = np.zeros_like(train_original_labels)
+        train_coarse_labels_1[train_original_labels > 0] = 1
+        train_coarse_labels_2 = np.zeros_like(train_original_labels)
+        train_coarse_labels_2[train_original_labels > 1] = 1
+
+        test_coarse_labels_1 = np.zeros_like(test_original_labels)
+        test_coarse_labels_1[test_original_labels > 0] = 1
+        test_coarse_labels_2 = np.zeros_like(test_original_labels)
+        test_coarse_labels_2[test_original_labels > 1] = 1
+
+        # 创建细分类标签
+        train_fine_labels_1 = np.zeros_like(train_original_labels)
+        train_fine_labels_1[train_original_labels == 2] = 1
+        train_fine_labels_2 = np.zeros_like(train_original_labels)
+        train_fine_labels_2[train_original_labels == 1] = 1
+
+        test_fine_labels_1 = np.zeros_like(test_original_labels)
+        test_fine_labels_1[test_original_labels == 2] = 1
+        test_fine_labels_2 = np.zeros_like(test_original_labels)
+        test_fine_labels_2[test_original_labels == 1] = 1
+
+        # 转换为PyTorch张量
+        train_data = torch.tensor(train_data.astype(np.float32), dtype=torch.float)
+        train_coarse_labels_1 = torch.tensor(train_coarse_labels_1, dtype=torch.long)
+        train_fine_labels_1 = torch.tensor(train_fine_labels_1, dtype=torch.long)
+        train_coarse_labels_2 = torch.tensor(train_coarse_labels_2, dtype=torch.long)
+        train_fine_labels_2 = torch.tensor(train_fine_labels_2, dtype=torch.long)
+        train_original_labels = torch.tensor(train_original_labels, dtype=torch.long)
+
+        test_data = torch.tensor(test_data.astype(np.float32), dtype=torch.float)
+        test_coarse_labels_1 = torch.tensor(test_coarse_labels_1, dtype=torch.long)
+        test_fine_labels_1 = torch.tensor(test_fine_labels_1, dtype=torch.long)
+        test_coarse_labels_2 = torch.tensor(test_coarse_labels_2, dtype=torch.long)
+        test_fine_labels_2 = torch.tensor(test_fine_labels_2, dtype=torch.long)
+        test_original_labels = torch.tensor(test_original_labels, dtype=torch.long)
+
+        # 动态调整批次大小
+        actual_batch_size = min(batch_size, len(train_data))
+        if actual_batch_size != batch_size:
+            print(f"调整批次大小从 {batch_size} 到 {actual_batch_size}")
+
+        # 创建数据加载器
+        train_dataset = TensorDataset(train_data, train_coarse_labels_1, train_fine_labels_1,
+                                      train_coarse_labels_2, train_fine_labels_2, train_original_labels)
+        test_dataset = TensorDataset(test_data, test_coarse_labels_1, test_fine_labels_1,
+                                     test_coarse_labels_2, test_fine_labels_2, test_original_labels)
+
+        train_loader = DataLoader(train_dataset, batch_size=actual_batch_size, shuffle=True)
+        test_loader = DataLoader(test_dataset, batch_size=actual_batch_size, shuffle=False)
+
+        print(f"数据加载器创建成功 - 训练批次: {len(train_loader)}, 测试批次: {len(test_loader)}")
+
+        return train_loader, test_loader
+
+    except Exception as e:
+        print(f"get_data_loaders 错误: {e}")
+        import traceback
+        traceback.print_exc()
+        raise
+
+
 def train_epoch(model, source_loader, target_loader, optimizer, device, epoch, total_epochs):
     model.train()
     criterion_cls = LabelSmoothingLoss(classes=2, smoothing=0.1)  # 类别数2，平滑参数为0.1
@@ -310,95 +487,9 @@ def train_epoch(model, source_loader, target_loader, optimizer, device, epoch, t
     train_loss, coarse_loss, fine_loss, domain_loss, alignment_loss = total_loss / n_batches, coarse_loss_total / n_batches, fine_loss_total / n_batches, domain_loss_total / n_batches, alignment_loss_total / n_batches
     return train_loss
 
-def evaluate_model(model, test_loader, device):
-    """
-    评估模型并返回预测标签
-    """
-    model.eval()
-    coarse_correct_1 = fine_correct_1 = coarse_correct_2 = fine_correct_2 = medium_high_total_1 = low_medium_total_2 = total = 0
-    all_coarse_preds_1, all_coarse_labels_1 = [], []
-    all_fine_preds_1, all_fine_labels_1 = [], []
-    all_coarse_preds_2, all_coarse_labels_2 = [], []
-    all_fine_preds_2, all_fine_labels_2 = [], []
-    all_original_preds, all_original_labels = [], []
-
-    with torch.no_grad():
-        for data, coarse_labels_1, fine_labels_1, coarse_labels_2, fine_labels_2, original_labels in test_loader:
-            data, coarse_labels_1, fine_labels_1, coarse_labels_2, fine_labels_2 = data.to(device), coarse_labels_1.to(device), fine_labels_1.to(device), coarse_labels_2.to(device), fine_labels_2.to(device)
-            coarse_output_1, fine_output_1, coarse_output_2, fine_output_2, _, _ = model(data)
-            coarse_predicted_1 = torch.max(coarse_output_1, 1)[1]
-            fine_predicted_1 = torch.max(fine_output_1, 1)[1]
-            coarse_predicted_2 = torch.max(coarse_output_2, 1)[1]
-            fine_predicted_2 = torch.max(fine_output_2, 1)[1]
-
-            total += coarse_labels_1.size(0)
-            coarse_correct_1 += (coarse_predicted_1 == coarse_labels_1).sum().item()
-            medium_high_mask_1 = coarse_labels_1 == 1
-            medium_high_total_1 += medium_high_mask_1.sum().item()
-            if medium_high_mask_1.sum() > 0:
-                fine_correct_1 += (fine_predicted_1[medium_high_mask_1] == fine_labels_1[medium_high_mask_1]).sum().item()
-
-            coarse_correct_2 += (coarse_predicted_2 == coarse_labels_2).sum().item()
-            low_medium_mask_2 = coarse_labels_2 == 0
-            low_medium_total_2 += low_medium_mask_2.sum().item()
-            if low_medium_mask_2.sum() > 0:
-                fine_correct_2 += (fine_predicted_2[low_medium_mask_2] == fine_labels_2[low_medium_mask_2]).sum().item()
-
-            # 收集预测结果
-            all_coarse_preds_1.extend(coarse_predicted_1.cpu().numpy())
-            all_coarse_labels_1.extend(coarse_labels_1.cpu().numpy())
-            all_fine_preds_1.extend(fine_predicted_1.cpu().numpy())
-            all_fine_labels_1.extend(fine_labels_1.cpu().numpy())
-            all_coarse_preds_2.extend(coarse_predicted_2.cpu().numpy())
-            all_coarse_labels_2.extend(coarse_labels_2.cpu().numpy())
-            all_fine_preds_2.extend(fine_predicted_2.cpu().numpy())
-            all_fine_labels_2.extend(fine_labels_2.cpu().numpy())
-
-            original_preds_1 = convert_to_original_labels_1(coarse_predicted_1.cpu().numpy(), fine_predicted_1.cpu().numpy())
-            original_preds_2 = convert_to_original_labels_2(coarse_predicted_2.cpu().numpy(), fine_predicted_2.cpu().numpy())
-
-            # 使用元模型进行最终预测
-            X_meta = np.column_stack((original_preds_1, original_preds_2))
-            meta_model = LogisticRegression()
-            meta_model.fit(X_meta, original_labels.numpy())
-            original_preds = meta_model.predict(X_meta)
-            all_original_preds.extend(original_preds)
-            all_original_labels.extend(original_labels.numpy())
-
-    # 计算准确率
-    coarse_accuracy_1 = coarse_correct_1 / total if total > 0 else 0
-    fine_accuracy_1 = fine_correct_1 / medium_high_total_1 if medium_high_total_1 > 0 else 0
-    coarse_accuracy_2 = coarse_correct_2 / total if total > 0 else 0
-    fine_accuracy_2 = fine_correct_2 / low_medium_total_2 if low_medium_total_2 > 0 else 0
-    test_accuracy = accuracy_score(all_original_labels, all_original_preds)
-
-    # 返回预测结果和准确率
-    predictions = {
-        'coarse_preds_1': np.array(all_coarse_preds_1),
-        'coarse_labels_1': np.array(all_coarse_labels_1),
-        'fine_preds_1': np.array(all_fine_preds_1),
-        'fine_labels_1': np.array(all_fine_labels_1),
-        'coarse_preds_2': np.array(all_coarse_preds_2),
-        'coarse_labels_2': np.array(all_coarse_labels_2),
-        'fine_preds_2': np.array(all_fine_preds_2),
-        'fine_labels_2': np.array(all_fine_labels_2),
-        'original_preds': np.array(all_original_preds),
-        'original_labels': np.array(all_original_labels)
-    }
-    
-    accuracies = {
-        'coarse_accuracy_1': coarse_accuracy_1,
-        'fine_accuracy_1': fine_accuracy_1,
-        'coarse_accuracy_2': coarse_accuracy_2,
-        'fine_accuracy_2': fine_accuracy_2,
-        'test_accuracy': test_accuracy
-    }
-
-    return predictions, accuracies
-
 #加载权重
 def load_model_weights_predict(model_path,data):
-    model = HierarchicalCrossSubModel(n_channels=2, n_times=250, embed_dim=EMBED_DIM).to(DEVICE)
+    model = HierarchicalCrossSubModel(n_channels=2, n_times=500, embed_dim=EMBED_DIM).to(DEVICE)
     model.load_state_dict(torch.load(model_path))
     model.eval()
     Tdata = torch.Tensor(data[np.newaxis, :]).to(DEVICE)
@@ -407,9 +498,52 @@ def load_model_weights_predict(model_path,data):
     fine_predicted_1 = torch.max(fine_output_1, 1)[1]
     coarse_predicted_2 = torch.max(coarse_output_2, 1)[1]
     fine_predicted_2 = torch.max(fine_output_2, 1)[1]
-
-    original_preds_1 = convert_to_original_labels_1(coarse_predicted_1.cpu().numpy(), fine_predicted_1.cpu().numpy())
-    original_preds_2 = convert_to_original_labels_2(coarse_predicted_2.cpu().numpy(), fine_predicted_2.cpu().numpy())
-    # 加权平均
-    original_preds = np.round(0.3 * original_preds_1 + 0.7 * original_preds_2).astype(int)
+    original_preds_1 = convert_to_original_labels_1(coarse_predicted_1.cpu().numpy(),
+                                                    fine_predicted_1.cpu().numpy())
+    original_preds_2 = convert_to_original_labels_2(coarse_predicted_2.cpu().numpy(),
+                                                    fine_predicted_2.cpu().numpy())
+    # 简单多数投票
+    original_preds = np.round((original_preds_1 + original_preds_1) / 2).astype(int)
     return original_preds
+
+
+def test_predict(model,test_dataloder):
+    model.eval()
+    coarse_correct_1 = fine_correct_1 = coarse_correct_2 = fine_correct_2 = medium_high_total_1 = low_medium_total_2 = total = 0
+    all_original_preds, all_original_labels = [], []
+    for data, coarse_labels_1, fine_labels_1, coarse_labels_2, fine_labels_2, original_labels in test_dataloder:
+        data, coarse_labels_1, fine_labels_1, coarse_labels_2, fine_labels_2 = data.to(DEVICE), coarse_labels_1.to(
+            DEVICE), fine_labels_1.to(DEVICE), coarse_labels_2.to(DEVICE), fine_labels_2.to(DEVICE)
+
+        coarse_output_1, fine_output_1, coarse_output_2, fine_output_2, _, _ = model(data)
+        coarse_predicted_1 = torch.max(coarse_output_1, 1)[1]
+        fine_predicted_1 = torch.max(fine_output_1, 1)[1]
+        coarse_predicted_2 = torch.max(coarse_output_2, 1)[1]
+        fine_predicted_2 = torch.max(fine_output_2, 1)[1]
+
+        total += coarse_labels_1.size(0)
+        coarse_correct_1 += (coarse_predicted_1 == coarse_labels_1).sum().item()
+        medium_high_mask_1 = coarse_labels_1 == 1
+        medium_high_total_1 += medium_high_mask_1.sum().item()
+        if medium_high_mask_1.sum() > 0:
+            fine_correct_1 += (fine_predicted_1[medium_high_mask_1] == fine_labels_1[medium_high_mask_1]).sum().item()
+
+        coarse_correct_2 += (coarse_predicted_2 == coarse_labels_2).sum().item()
+        low_medium_mask_2 = coarse_labels_2 == 0
+        low_medium_total_2 += low_medium_mask_2.sum().item()
+        if low_medium_mask_2.sum() > 0:
+            fine_correct_2 += (fine_predicted_2[low_medium_mask_2] == fine_labels_2[low_medium_mask_2]).sum().item()
+
+        original_preds_1 = convert_to_original_labels_1(coarse_predicted_1.cpu().numpy(),
+                                                        fine_predicted_1.cpu().numpy())
+        original_preds_2 = convert_to_original_labels_2(coarse_predicted_2.cpu().numpy(),
+                                                        fine_predicted_2.cpu().numpy())
+
+        # 简单多数投票
+        original_preds = np.round((original_preds_1 + original_preds_1) / 2).astype(int)
+        all_original_preds.extend(original_preds)
+        all_original_labels.extend(original_labels.numpy())
+
+    test_accuracy = accuracy_score(all_original_labels, all_original_preds)
+    return test_accuracy
+

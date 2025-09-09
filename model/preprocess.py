@@ -67,65 +67,88 @@ def preprocess_eeg(file_path, output_path, downsample_freq=250):
     unique_types = np.unique(types)
     if len(unique_types) > 0 and isinstance(unique_types[0], str):
         event_dict = {t: i + 1 for i, t in enumerate(unique_types)}
+    print("不进行滤波")
+    # # 2. 滤波 (0.5-45Hz)
+    # print("\n步骤2: 带通滤波(0.5-45Hz)...")
+    # raw_filtered = raw.copy().filter(l_freq=0.5, h_freq=45, method='fir', phase='zero-double')
+    # # raw_filtered.plot(title='滤波后数据', block=False)
+    #
+    # # 3. 降采样
+    # print("\n步骤3: 降采样...")
+    # if downsample_freq < original_sfreq:
+    #     ratio = downsample_freq / original_sfreq
+    #     raw_resampled = raw_filtered.copy().resample(sfreq=downsample_freq)
+    #
+    #     # 调整事件位置(样本点)
+    #     events_resampled = events.copy()
+    #     print(events[:, 0] * ratio)
+    #     events_resampled[:, 0] = (events[:, 0] * ratio).astype(int)
+    #     print(events_resampled)
+    #     print(f"降采样到 {downsample_freq}Hz, 事件位置已调整")
+    # else:
+    #     raw_resampled = raw_filtered.copy()
+    #     events_resampled = events.copy()
+    #     print("采样率已低于目标频率，跳过降采样")
 
-    # 2. 滤波 (0.5-45Hz)
-    print("\n步骤2: 带通滤波(0.5-45Hz)...")
-    raw_filtered = raw.copy().filter(l_freq=0.5, h_freq=45, method='fir', phase='zero-double')
-    # raw_filtered.plot(title='滤波后数据', block=False)
-
-    # 3. 降采样
-    print("\n步骤3: 降采样...")
-    if downsample_freq < original_sfreq:
-        ratio = downsample_freq / original_sfreq
-        raw_resampled = raw_filtered.copy().resample(sfreq=downsample_freq)
-
-        # 调整事件位置(样本点)
-        events_resampled = events.copy()
-        print(events[:, 0] * ratio)
-        events_resampled[:, 0] = (events[:, 0] * ratio).astype(int)
-        print(events_resampled)
-        print(f"降采样到 {downsample_freq}Hz, 事件位置已调整")
-    else:
-        raw_resampled = raw_filtered.copy()
-        events_resampled = events.copy()
-        print("采样率已低于目标频率，跳过降采样")
-
-
-    # 5. ICA去除眼电
-    print("\n步骤5: ICA去除眼电...")
-    ica = ICA(n_components=2, max_iter='auto', random_state=97)
-    ica.fit(raw_resampled.copy())
-
-    # 自动检测眼电成分
-    eog_indices, eog_scores = ica.find_bads_eog(raw_resampled.copy(), ch_name=['EEG01', 'EEG02'],
-                                                threshold=2.0)
-    ica.exclude = eog_indices
-
-    # 应用ICA去除眼电
-    raw_ica = raw_resampled.copy().copy()
-    print("raw_ica---------------------", raw_ica.get_data().shape)
-
-    ica.apply(raw_ica)
+    print("不进行ICA")
+    # # 5. ICA去除眼电
+    # print("\n步骤5: ICA去除眼电...")
+    # ica = ICA(n_components=2, max_iter='auto', random_state=97)
+    # ica.fit(raw_resampled.copy())
+    #
+    # # 自动检测眼电成分
+    # eog_indices, eog_scores = ica.find_bads_eog(raw_resampled.copy(), ch_name=['EEG01', 'EEG02'],
+    #                                             threshold=2.0)
+    # ica.exclude = eog_indices
+    #
+    # # 应用ICA去除眼电
+    # raw_ica = raw_resampled.copy().copy()
+    # print("raw_ica---------------------", raw_ica.get_data().shape)
+    #
+    # ica.apply(raw_ica)
 
     # 将事件转换为MATLAB兼容格式
+    # mat_events = {
+    #     'positions': events_resampled[:, 0],  # 事件位置(样本点)
+    #     'types': events_resampled[:, 2],  # 事件类型编码
+    #     'latencies': events_resampled[:, 0] / downsample_freq,  # 事件延迟(秒)
+    #     'type_dict': event_dict  # 事件类型字典
+    # }
+    print("原始数据重新保存以对应")
     mat_events = {
-        'positions': events_resampled[:, 0],  # 事件位置(样本点)
-        'types': events_resampled[:, 2],  # 事件类型编码
-        'latencies': events_resampled[:, 0] / downsample_freq,  # 事件延迟(秒)
+        'positions': events[:, 0],  # 事件位置(样本点)
+        'types': events[:, 2],  # 事件类型编码
+        'latencies': events[:, 0] / downsample_freq,  # 事件延迟(秒)
         'type_dict': event_dict  # 事件类型字典
     }
-
     # 7. 准备保存为.mat文件的数据
     print("\n准备.mat文件数据...")
+    # mat_data = {
+    #     'data': raw_ica.get_data(),
+    #     'sfreq': raw_ica.info['sfreq'],
+    #     'ch_names': raw_ica.info['ch_names'],
+    #     'times': raw_ica.times,
+    #     'events': mat_events,  # 包含所有事件信息
+    #     'annotations': [(ann['onset'], ann['duration'], ann['description'])
+    #                     for ann in raw_ica.annotations],
+    #     'ica_components': ica.get_components() if hasattr(ica, 'get_components') else None,
+    #     'preprocessing_info': {
+    #         'filter': '0.5-45Hz',
+    #         'downsample': downsample_freq,
+    #         'rereference': 'average (REST替代)',
+    #         'ica_method': 'infomax'
+    #     }
+    # }
+
     mat_data = {
-        'data': raw_ica.get_data(),
-        'sfreq': raw_ica.info['sfreq'],
-        'ch_names': raw_ica.info['ch_names'],
-        'times': raw_ica.times,
+        'data': raw.get_data(),
+        'sfreq': raw.info['sfreq'],
+        'ch_names': raw.info['ch_names'],
+        'times': raw.times,
         'events': mat_events,  # 包含所有事件信息
         'annotations': [(ann['onset'], ann['duration'], ann['description'])
-                        for ann in raw_ica.annotations],
-        'ica_components': ica.get_components() if hasattr(ica, 'get_components') else None,
+                        for ann in raw.annotations],
+        # 'ica_components': ica.get_components() if hasattr(ica, 'get_components') else None,
         'preprocessing_info': {
             'filter': '0.5-45Hz',
             'downsample': downsample_freq,
@@ -133,7 +156,6 @@ def preprocess_eeg(file_path, output_path, downsample_freq=250):
             'ica_method': 'infomax'
         }
     }
-
     # 保存预处理后的数据
     print("\n保存预处理后的数据...")
     savemat(output_path, mat_data)
@@ -169,34 +191,34 @@ def preprocess_data(data, downsample_freq=250):
     raw = mne.io.RawArray(eeg_data, info)
 
     # 2. 滤波 (0.5-45Hz)
-    print("\n步骤2: 带通滤波(0.5-45Hz)...")
-    raw_filtered = raw.copy().filter(l_freq=0.5, h_freq=45, method='fir', phase='zero-double')
+    print("\n步骤2: 不带通滤波(0.5-45Hz)...")
+    # raw_filtered = raw.copy().filter(l_freq=0.5, h_freq=45, method='fir', phase='zero-double')
 
 
     # 3. 降采样
-    print("\n步骤3: 降采样...")
-    if downsample_freq < original_sfreq:
-        ratio = downsample_freq / original_sfreq
-        raw_resampled = raw_filtered.copy().resample(sfreq=downsample_freq)
-
-    else:
-        raw_resampled = raw_filtered.copy()
+    print("\n步骤3: 不降采样...")
+    # if downsample_freq < original_sfreq:
+    #     ratio = downsample_freq / original_sfreq
+    #     raw_resampled = raw_filtered.copy().resample(sfreq=downsample_freq)
+    #
+    # else:
+    #     raw_resampled = raw_filtered.copy()
     # 5. ICA去除眼电
-    print("\n步骤5: ICA去除眼电...")
-    ica = ICA(n_components=2, max_iter='auto', random_state=97)
-    ica.fit(raw_resampled.copy())
+    # print("\n步骤5: 不ICA去除眼电...")
+    # ica = ICA(n_components=2, max_iter='auto', random_state=97)
+    # ica.fit(raw_resampled.copy())
 
-    # 自动检测眼电成分
-    eog_indices, eog_scores = ica.find_bads_eog(raw_resampled.copy(), ch_name=['EEG01', 'EEG02'],
-                                                threshold=2.0)
-    ica.exclude = eog_indices
+    # # 自动检测眼电成分
+    # eog_indices, eog_scores = ica.find_bads_eog(raw_resampled.copy(), ch_name=['EEG01', 'EEG02'],
+    #                                             threshold=2.0)
+    # ica.exclude = eog_indices
+    #
+    # # 应用ICA去除眼电
+    # raw_ica = raw_resampled.copy().copy()
+    # print("raw_ica---------------------", raw_ica.get_data().shape)
 
-    # 应用ICA去除眼电
-    raw_ica = raw_resampled.copy().copy()
-    print("raw_ica---------------------", raw_ica.get_data().shape)
-
-    ica.apply(raw_ica)
-    return raw_ica.get_data()
+    # ica.apply(raw_ica)
+    return raw.get_data()
 
 def save_to_npy(file_path,output_data_path,output_label_path):
 
@@ -204,18 +226,18 @@ def save_to_npy(file_path,output_data_path,output_label_path):
     event_data1 = loadmat(file_path)["events"]["positions"]
 
     low_data = data1[event_data1[0][0][0][0]:event_data1[0][0][0][1]]
-    low_data = low_data[:low_data.shape[0] // 250 * 250]
-    low_data = low_data.reshape(-1, 2, 250)
+    low_data = low_data[:low_data.shape[0] // 500 * 500]
+    low_data = low_data.reshape(-1, 2, 500)
     low_label = np.repeat(0, low_data.shape[0])
 
     mid_data = data1[event_data1[0][0][0][1]:event_data1[0][0][0][2]]
-    mid_data = mid_data[:mid_data.shape[0] // 250 * 250]
-    mid_data = mid_data.reshape(-1, 2, 250)
+    mid_data = mid_data[:mid_data.shape[0] // 500 * 500]
+    mid_data = mid_data.reshape(-1, 2, 500)
     mid_label = np.repeat(1, mid_data.shape[0])
 
     high_data = data1[event_data1[0][0][0][2]:event_data1[0][0][0][3]]
-    high_data = high_data[:high_data.shape[0] // 250 * 250]
-    high_data = high_data.reshape(-1, 2, 250)
+    high_data = high_data[:high_data.shape[0] // 500 * 500]
+    high_data = high_data.reshape(-1, 2, 500)
     high_label = np.repeat(2, high_data.shape[0])
 
     data_result = np.concatenate([low_data, mid_data, high_data])
@@ -228,40 +250,48 @@ def save_to_npy(file_path,output_data_path,output_label_path):
 
 # 使用示例
 if __name__ == "__main__":
-    filename = "grxx"
-    path = "D:/SubEEG/"
-    input_mat_file = path + filename + "_1.mat"
-    output_mat_file = path + filename + "_process.mat"
-    # # 运行预处理
-    datapth = "D:/SubEEG/data/"
-    labelpth = "D:/SubEEG/label/"
-    output_model_file = "D:/SubEEG/model/" + filename + ".pth"
-    output_npy_data = datapth + filename + ".npy"
-    output_npy_label = labelpth + filename + ".npy"
-    # preprocess_eeg(input_mat_file, output_mat_file, downsample_freq=250)
-    # save_to_npy(output_mat_file,output_npy_data, output_npy_label)
-    data = np.load(output_npy_data)
-    label = np.load(output_npy_label)
-    print(len(data))
-    # # 训练并保存模型
-
-    # train_loader, val_loader = get_data_loaders(output_npy_data, output_npy_label, batch_size=128)
-    # train_and_save_model(train_loader, val_loader, output_model_file)
-    totol = len(data)
-    plabelist = []
-    correct = 0
-    for i in range(len(data)):
-        tdata = data[i]
-        tlabel = label[i]
-        Plabel = load_model_weights_predict(output_model_file, tdata)[0]
-        plabelist.append(Plabel)
-        if tlabel == Plabel:
-            correct+=1
-    acc = correct / totol
-    print(acc)
+    # filename = "grxx"
+    # path = "D:/SubEEG/"
+    # input_mat_file = path + filename + "_1.mat"
+    # output_mat_file = path + filename + "_process.mat"
+    # # # 运行预处理
+    # datapth = "D:/SubEEG/data/"
+    # labelpth = "D:/SubEEG/label/"
+    # output_model_file = "D:/SubEEG/model/" + filename + ".pth"
+    # output_npy_data = datapth + filename + ".npy"
+    # output_npy_label = labelpth + filename + ".npy"
+    # # preprocess_eeg(input_mat_file, output_mat_file, downsample_freq=250)
+    # # save_to_npy(output_mat_file,output_npy_data, output_npy_label)
+    # data = np.load(output_npy_data)
+    # label = np.load(output_npy_label)
+    # print(len(data))
+    # # # 训练并保存模型
+    #
+    # # train_loader, val_loader = get_data_loaders(output_npy_data, output_npy_label, batch_size=128)
+    # # train_and_save_model(train_loader, val_loader, output_model_file)
+    # totol = len(data)
+    # plabelist = []
+    # correct = 0
+    # for i in range(len(data)):
+    #     tdata = data[i]
+    #     tlabel = label[i]
+    #     Plabel = load_model_weights_predict(output_model_file, tdata)[0]
+    #     plabelist.append(Plabel)
+    #     if tlabel == Plabel:
+    #         correct+=1
+    # acc = correct / totol
+    # print(acc)
     # # data = np.random.rand(2, 500)
     # tdata = preprocess_data(data)
     # label = load_model_weights_predict(output_model_file,tdata)[0]
     # # print(label)
+    npy_path_mat = "D:/SubEEG/grxx_0.mat"
+    npy_mat = "D:/SubEEG/grxx_0_precess.mat"
+    preprocess_eeg(npy_path_mat,npy_mat)
+    train_npy_data_path = "D:/SubEEG/data/grww.npy"
+    train_npy_label = "D:/SubEEG/label/grww.npy"
+    save_to_npy(npy_mat,train_npy_data_path,train_npy_label)
+
+
 
 

@@ -1,5 +1,4 @@
-﻿
-#include "chart.h"
+﻿#include "chart.h"
 #include "QDebug"
 
 
@@ -128,6 +127,10 @@ void Chart::init() {
     QPushButton* btnStopPlot = new QPushButton("停止绘制");
     btnStopPlot->setObjectName("stopPlotButton");
 
+    // 添加保存Excel按钮
+    QPushButton* btnSaveExcel = new QPushButton("导出Excel");
+    btnSaveExcel->setObjectName("saveExcelButton");
+
     // 设置按钮样式 - 增加悬停效果和按下效果
     QString buttonStyle = "QPushButton {"
         "background-color: #3498db;"
@@ -147,25 +150,38 @@ void Chart::init() {
 
     // 停止按钮特殊样式
     QString stopButtonStyle = "QPushButton#stopPlotButton {"
-                              "background-color: #e74c3c;" // 红色表示停止状态
-                              "}"
-                              "QPushButton#stopPlotButton:hover {"
-                              "background-color: #c0392b;"
-                              "}"
-                              "QPushButton#stopPlotButton:pressed {"
-                              "background-color: #a93226;"
-                              "}";
+        "background-color: #e74c3c;" // 红色表示停止状态
+        "}"
+        "QPushButton#stopPlotButton:hover {"
+        "background-color: #c0392b;"
+        "}"
+        "QPushButton#stopPlotButton:pressed {"
+        "background-color: #a93226;"
+        "}";
+
+    // Excel按钮特殊样式
+    QString excelButtonStyle = "QPushButton#saveExcelButton {"
+        "background-color: #27ae60;" // 绿色表示保存
+        "}"
+        "QPushButton#saveExcelButton:hover {"
+        "background-color: #229954;"
+        "}"
+        "QPushButton#saveExcelButton:pressed {"
+        "background-color: #1e8449;"
+        "}";
 
     btn1min->setStyleSheet(buttonStyle);
     btn2min->setStyleSheet(buttonStyle);
     btn5min->setStyleSheet(buttonStyle);
     btnStopPlot->setStyleSheet(buttonStyle + stopButtonStyle);
+    btnSaveExcel->setStyleSheet(buttonStyle + excelButtonStyle);
 
     // 设置按钮固定宽度
     btn1min->setFixedWidth(80);
     btn2min->setFixedWidth(80);
     btn5min->setFixedWidth(80);
     btnStopPlot->setFixedWidth(80);
+    btnSaveExcel->setFixedWidth(80);
 
     btn1min->setEnabled(true);
     btn2min->setEnabled(true);
@@ -186,11 +202,15 @@ void Chart::init() {
             btnStopPlot->setStyleSheet(buttonStyle + stopButtonStyle); // 恢复红色样式
             // 恢复时更新图表到最新状态
             updateChartFromData();
-        } else {
+        }
+        else {
             btnStopPlot->setText("恢复绘制");
             btnStopPlot->setStyleSheet(buttonStyle); // 使用普通蓝色样式
         }
-    });
+        });
+
+    // 连接保存Excel按钮
+    connect(btnSaveExcel, &QPushButton::clicked, this, &Chart::saveDataToExcel);
 
     buttonLayout->addWidget(timeRangeLabel);
     buttonLayout->addSpacing(10);
@@ -201,6 +221,9 @@ void Chart::init() {
     buttonLayout->addWidget(btn5min);
     buttonLayout->addStretch();
     buttonLayout->addWidget(btnStopPlot); // 添加停止绘制按钮
+    buttonLayout->addSpacing(10);
+    buttonLayout->addWidget(btnSaveExcel); // 添加保存Excel按钮
+
     // 创建右侧布局（包含按钮和饼图）
     QVBoxLayout* rightLayout = new QVBoxLayout();
     rightLayout->setSpacing(10);
@@ -211,7 +234,7 @@ void Chart::init() {
     //    // 设置饼图容器背景
     pieChartContainer->setStyleSheet("background-color:white;");
 
-     //将折线图和右侧布局添加到主布局
+    //将折线图和右侧布局添加到主布局
     mainLayout->addWidget(chartView, 8);   // 折线图占7份空间
     mainLayout->addLayout(rightLayout, 2); // 右侧部分占3份空间
 
@@ -222,8 +245,167 @@ void Chart::init() {
     // 初始化数据存储
     dataPoints.clear();
     localDataPoints.clear(); // 初始化本地数据点存储
-    
+    comparisonData.clear(); // 初始化对比数据存储
+
 }
+
+// 保存数据到Excel/CSV文件
+void Chart::saveDataToExcel() {
+    if (comparisonData.isEmpty()) {
+        QMessageBox::information(this, "提示", "暂无数据可导出");
+        return;
+    }
+
+    QString filePath = getExcelFilePath();
+    if (filePath.isEmpty()) {
+        return; // 用户取消了文件选择
+    }
+
+    QFile file(filePath);
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        QMessageBox::critical(this, "错误", QString("无法创建文件: %1").arg(filePath));
+        return;
+    }
+
+    QTextStream stream(&file);
+    stream.setCodec("UTF-8"); // 设置编码为UTF-8
+    stream.setGenerateByteOrderMark(true); // 添加BOM以确保Excel正确识别UTF-8
+
+    // 写入标题行
+    stream << QString::fromUtf8("时间戳,预测值,预测标签,真实值,真实标签,是否匹配,差值\n");
+
+    // 统计数据
+    int totalRecords = 0;
+    int matchingRecords = 0;
+    double totalError = 0.0;
+    int validComparisons = 0;
+
+    // 写入数据行
+    for (const DataRecord& record : comparisonData) {
+        totalRecords++;
+
+        QString line = record.timestamp.toString("yyyy-MM-dd hh:mm:ss.zzz") + ",";
+        line += QString::number(record.predictedValue, 'f', 1) + ",";
+        line += record.predictedLabel + ",";
+
+        if (record.hasActualValue) {
+            line += QString::number(record.actualValue, 'f', 1) + ",";
+            line += record.actualLabel + ",";
+
+            // 判断是否匹配（考虑容差）
+            bool isMatch = qAbs(record.predictedValue - record.actualValue) <= 5.0;
+            line += QString(isMatch ? "匹配" : "不匹配") + ",";
+
+            // 计算差值
+            double diff = record.predictedValue - record.actualValue;
+            line += QString::number(diff, 'f', 1);
+
+            if (isMatch) matchingRecords++;
+            totalError += qAbs(diff);
+            validComparisons++;
+        }
+        else {
+            line += "无真实值,无真实标签,无法比较,无法计算";
+        }
+
+        stream << QString::fromUtf8(line.toUtf8()) << "\n";
+    }
+
+    // 写入统计信息
+    stream << "\n" << QString::fromUtf8("=== 统计信息 ===\n");
+    stream << QString::fromUtf8("总记录数: %1\n").arg(totalRecords);
+    stream << QString::fromUtf8("有效对比数: %1\n").arg(validComparisons);
+
+    if (validComparisons > 0) {
+        double accuracy = (double)matchingRecords / validComparisons * 100.0;
+        double avgError = totalError / validComparisons;
+
+        stream << QString::fromUtf8("匹配记录数: %1\n").arg(matchingRecords);
+        stream << QString::fromUtf8("准确率: %1%\n").arg(QString::number(accuracy, 'f', 2));
+        stream << QString::fromUtf8("平均绝对误差: %1\n").arg(QString::number(avgError, 'f', 2));
+    }
+
+    file.close();
+
+    // 显示保存成功消息
+    QString message = QString("数据已成功导出到:\n%1\n\n统计信息:\n总记录数: %2\n有效对比数: %3")
+        .arg(filePath)
+        .arg(totalRecords)
+        .arg(validComparisons);
+
+    if (validComparisons > 0) {
+        double accuracy = (double)matchingRecords / validComparisons * 100.0;
+        message += QString("\n准确率: %1%").arg(QString::number(accuracy, 'f', 2));
+    }
+
+    QMessageBox::information(this, "导出成功", message);
+}
+
+// 获取Excel文件保存路径
+QString Chart::getExcelFilePath() {
+    // 获取文档目录
+    QString documentsPath = QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
+
+    // 创建一个专门的目录
+    QDir dir(documentsPath);
+    if (!dir.exists("CognitiveStateData")) {
+        dir.mkpath("CognitiveStateData");
+    }
+
+    // 生成带时间戳的默认文件名
+    QString defaultFileName = QString("认知状态对比数据_%1.csv")
+        .arg(QDateTime::currentDateTime().toString("yyyyMMdd_hhmmss"));
+
+    QString defaultPath = dir.absoluteFilePath("CognitiveStateData/" + defaultFileName);
+
+    // 弹出文件保存对话框
+    QString filePath = QFileDialog::getSaveFileName(
+        this,
+        "保存认知状态对比数据",
+        defaultPath,
+        "CSV文件 (*.csv);;Excel文件 (*.xlsx);;所有文件 (*.*)"
+    );
+
+    return filePath;
+}
+
+// 将数值转换为标签描述
+QString Chart::valueToLabel(qreal value) {
+    if (value <= 30) {
+        return "低负荷";
+    }
+    else if (value <= 70) {
+        return "中负荷";
+    }
+    else {
+        return "高负荷";
+    }
+}
+
+// 添加对比记录
+void Chart::addComparisonRecord(QDateTime timestamp, qreal predicted, qreal actual) {
+    DataRecord record;
+    record.timestamp = timestamp;
+    record.predictedValue = predicted;
+    record.predictedLabel = valueToLabel(predicted);
+
+    if (actual >= 0) {
+        record.actualValue = actual;
+        record.actualLabel = valueToLabel(actual);
+        record.hasActualValue = true;
+    }
+    else {
+        record.hasActualValue = false;
+    }
+
+    comparisonData.append(record);
+
+    // 限制数据量，避免内存占用过大
+    if (comparisonData.size() > 10000) {
+        comparisonData.removeFirst();
+    }
+}
+
 void Chart::updateChartFromData() {
     // 更新折线图
     series->clear();
@@ -420,12 +602,13 @@ void Chart::receiveDatas() {
         else {
             value = 85;
         }
-        dataPoints.append({currentTime, value});
+        dataPoints.append({ currentTime, value });
+
         // 同时存储本地标签数据
         // 添加条件：仅当本地数据有效(!= -1)时存储
+        qreal localvalue = -1;
         if (localresult != static_cast<uint8_t>(-1)) {
             //qreal localvalue = (localresult == 0) ? 30 : 80;
-            qreal localvalue;
             if (localresult == 0) {
                 localvalue = 30;
             }
@@ -437,14 +620,10 @@ void Chart::receiveDatas() {
             }
             localDataPoints.append({ currentTime, localvalue });
         }
-        // qDebug()<<"存储本地标签数据"<<localLabelData.isEmpty();
-        // if (!localLabelData.isEmpty() && localLabelIndex < localLabelData.size()) {
-        //     QPair<QDateTime, qreal> localPoint;
-        //     localPoint.first = currentTime;
-        //     localPoint.second = (localLabelData[localLabelIndex] == 0) ? 30 : 80;
-        //     localDataPoints.append(localPoint);
-        //     localLabelIndex++;
-        // }
+
+        // 添加对比记录到Excel数据中
+        addComparisonRecord(currentTime, value, localvalue);
+
         return;
     }
 
@@ -460,39 +639,37 @@ void Chart::receiveDatas() {
         point.second = 25;
     }
     else if (result == 1) {
-		point.second = 55;
+        point.second = 55;
     }
     else {
-		point.second = 85;
+        point.second = 85;
     }
     // 添加到数据列表
     dataPoints.append(point);
 
     // 处理本地标签数据
+    qreal localvalue = -1;
     if (localresult != static_cast<uint8_t>(-1)) {
         QPair<QDateTime, qreal> localPoint;
         localPoint.first = currentTime;
         //localPoint.second = (localresult == 0) ? 30 : 80;
         if (localresult == 0) {
             localPoint.second = 30;
+            localvalue = 30;
         }
         else if (localresult == 1) {
             localPoint.second = 60;
+            localvalue = 60;
         }
         else {
             localPoint.second = 90;
+            localvalue = 90;
         }
         localDataPoints.append(localPoint);
     }
-    // if (!localLabelData.isEmpty() ) {
-    //     QPair<QDateTime, qreal> localPoint;
-    //     localPoint.first = currentTime;
-    //     localPoint.second = (localLabelData[localLabelIndex] == 0) ? 30 : 80;
-    //     localDataPoints.append(localPoint);
 
-    //     localLabelIndex++; // 移动到下一个本地数据点
-    // }
-
+    // 添加对比记录到Excel数据中
+    addComparisonRecord(currentTime, point.second, localvalue);
 
     // 清理过期数据（保留最近5分钟）
     while (!dataPoints.isEmpty() &&
@@ -500,7 +677,7 @@ void Chart::receiveDatas() {
         dataPoints.removeFirst();
     }
     while (!localDataPoints.isEmpty() &&
-           localDataPoints.first().first.secsTo(currentTime) > 5 * 60) {
+        localDataPoints.first().first.secsTo(currentTime) > 5 * 60) {
         localDataPoints.removeFirst();
     }
     // 更新折线图
@@ -583,10 +760,10 @@ void Chart::connectdata(quint8 data, uint8_t localdata) {
         flag = false;
     }
     result = data;
-    
-    
+
+
     localresult = localdata;
-    
+
     //qDebug()<<"本地数据标签:"<<localresult;
     receiveDatas();
 }
