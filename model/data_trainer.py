@@ -1,18 +1,18 @@
-import numpy as np
-import torch
 from loss_function import *
 from sklearn.metrics import accuracy_score
-from model_origin import *
+from Mymodel import *
 from torch.utils.data import TensorDataset, DataLoader
-from sklearn.linear_model import LogisticRegression
+import torch.optim as optim
+from sklearn import preprocessing
 
+from preprocess import save_to_train_npy
 
 # 模型超参数
 EMBED_DIM = 64
 DROPOUT = 0.5
 BATCH_SIZE = 128
 NUM_EPOCHS = 1000
-LEARNING_RATE = 0.001
+LEARNING_RATE = 0.005
 WEIGHT_DECAY = 1e-2
 
 # 随机种子
@@ -21,58 +21,6 @@ SEED = 3407
 # 设备
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-#跨会话
-
-# def get_data_loaders(data_path,label_path,batch_size=128):
-#     data = np.load(data_path)
-#     original_labels = np.load(label_path)
-#
-#     # 创建粗分类标签 (0=低负荷, 1=中高负荷；0=低中负荷，1=高负荷)
-#     coarse_labels_1 = np.zeros_like(original_labels)
-#     coarse_labels_1[original_labels > 0] = 1
-#     coarse_labels_2 = np.zeros_like(original_labels)
-#     coarse_labels_2[original_labels > 1] = 1
-#
-#     # 创建细分类标签 (0=中负荷, 1=高负荷；0=低负荷，1=中负荷)
-#     fine_labels_1 = np.zeros_like(original_labels)
-#     fine_labels_1[original_labels == 2] = 1
-#     fine_labels_2 = np.zeros_like(original_labels)
-#     # fine_labels_2[original_labels == 2] = 1
-#     fine_labels_2[original_labels == 1] = 1
-#
-#     #训练集测试集划分
-#     train_data = np.concatenate([data[0:60,:,:], data[120:180,:,:], data[240:300,:,:]])
-#     train_coarse_labels_1 = np.concatenate([coarse_labels_1[0:60,], coarse_labels_1[120:180,], coarse_labels_1[240:300,]])
-#     train_fine_labels_1 = np.concatenate([fine_labels_1[0:60,], fine_labels_1[120:180,], fine_labels_1[240:300,]])
-#     train_coarse_labels_2 = np.concatenate([coarse_labels_2[0:60,], coarse_labels_2[120:180,], coarse_labels_2[240:300,]])
-#     train_fine_labels_2 = np.concatenate([fine_labels_2[0:60,], fine_labels_2[120:180,], fine_labels_2[240:300,]])
-#     train_original_labels = np.concatenate([original_labels[0:60,], original_labels[120:180,], original_labels[240:300,]])
-#     test_data = np.concatenate([data[60:120,:,:], data[180:240,:,:], data[300:360,:,:]])
-#     test_coarse_labels_1 = np.concatenate([coarse_labels_1[60:120,], coarse_labels_1[180:240,], coarse_labels_1[300:360,]])
-#     test_fine_labels_1 = np.concatenate([fine_labels_1[60:120,], fine_labels_1[180:240,], fine_labels_1[300:360,]])
-#     test_coarse_labels_2 = np.concatenate([coarse_labels_2[60:120,], coarse_labels_2[180:240,], coarse_labels_2[300:360,]])
-#     test_fine_labels_2 = np.concatenate([fine_labels_2[60:120,], fine_labels_2[180:240,], fine_labels_2[300:360,]])
-#     test_original_labels = np.concatenate([original_labels[60:120,], original_labels[180:240,], original_labels[300:360,]])
-#
-#     train_data = torch.tensor(train_data.real.astype(float), dtype=torch.float)
-#     train_coarse_labels_1 = torch.tensor(train_coarse_labels_1, dtype=torch.int64)
-#     train_fine_labels_1 = torch.tensor(train_fine_labels_1, dtype=torch.int64)
-#     train_coarse_labels_2 = torch.tensor(train_coarse_labels_2, dtype=torch.int64)
-#     train_fine_labels_2 = torch.tensor(train_fine_labels_2, dtype=torch.int64)
-#     train_original_labels = torch.tensor(train_original_labels, dtype=torch.int64)
-#     test_data = torch.tensor(test_data.real.astype(float), dtype=torch.float)
-#     test_coarse_labels_1 = torch.tensor(test_coarse_labels_1, dtype=torch.int64)
-#     test_fine_labels_1 = torch.tensor(test_fine_labels_1, dtype=torch.int64)
-#     test_coarse_labels_2 = torch.tensor(test_coarse_labels_2, dtype=torch.int64)
-#     test_fine_labels_2 = torch.tensor(test_fine_labels_2, dtype=torch.int64)
-#     test_original_labels = torch.tensor(test_original_labels, dtype=torch.int64)
-#
-#     # 创建数据加载器
-#     train_dataset = TensorDataset(train_data, train_coarse_labels_1, train_fine_labels_1, train_coarse_labels_2, train_fine_labels_2, train_original_labels)
-#     test_dataset = TensorDataset(test_data, test_coarse_labels_1, test_fine_labels_1, test_coarse_labels_2, test_fine_labels_2, test_original_labels)
-#     train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
-#     test_loader = DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=True)
-#     return train_loader, test_loader
 def get_data_loaders(data_path, label_path, batch_size=128):
     try:
         data = np.load(data_path)
@@ -271,8 +219,8 @@ def Pget_data_loaders(Train_data_path, Train_label_path,Test_data_path,Test_labe
         print(f"类别2样本数: {len(class_2_indices)}")
         # 加载验证数据
         Test_data = np.load(Test_data_path)
-        Test_original_labels = np.load(Test_label_path)
 
+        Test_original_labels = np.load(Test_label_path)
         print(f"验证原始数据形状: {Test_data.shape}")
         print(f"验证原始标签形状: {Test_original_labels.shape}")
         print(f"验证标签分布: {np.bincount(Test_original_labels)}")
@@ -437,8 +385,8 @@ def train_epoch(model, source_loader, target_loader, optimizer, device, epoch, t
         p = float(batch_idx + epoch * len(source_loader)) / (total_epochs * len(source_loader))  # 计算当前训练进度，范围从0到1
         alpha = 2.0 / (1.0 + np.exp(-10 * p)) - 1.0  # 2sigmoid(10p)-1， 自适应参数，渐进式策略
 
-        source_coarse_output_1, source_fine_output_1, source_coarse_output_2, source_fine_output_2, source_domain_output, source_features = model(source_data, alpha)
-        target_coarse_output_1, target_fine_output_1, target_coarse_output_2, target_fine_output_2, target_domain_output, target_features = model(target_data, alpha)
+        source_coarse_output_1, source_fine_output_1, source_coarse_output_2, source_fine_output_2, _, source_domain_output, source_features = model(source_data, alpha)
+        target_coarse_output_1, target_fine_output_1, target_coarse_output_2, target_fine_output_2, _, target_domain_output, target_features = model(target_data, alpha)
 
         target_coarse_pseudo_labels_1 = torch.argmax(target_coarse_output_1, dim=1)  # 为目标域数据生成粗粒度伪标签，取最大概率的类别
         target_fine_pseudo_labels_1 = torch.argmax(target_fine_output_1, dim=1)  # 为目标域数据生成细粒度伪标签，取最大概率的类别
@@ -515,24 +463,11 @@ def test_predict(model,test_dataloder):
         data, coarse_labels_1, fine_labels_1, coarse_labels_2, fine_labels_2 = data.to(DEVICE), coarse_labels_1.to(
             DEVICE), fine_labels_1.to(DEVICE), coarse_labels_2.to(DEVICE), fine_labels_2.to(DEVICE)
 
-        coarse_output_1, fine_output_1, coarse_output_2, fine_output_2, _, _ = model(data)
+        coarse_output_1, fine_output_1, coarse_output_2, fine_output_2, _, _, _= model(data)
         coarse_predicted_1 = torch.max(coarse_output_1, 1)[1]
         fine_predicted_1 = torch.max(fine_output_1, 1)[1]
         coarse_predicted_2 = torch.max(coarse_output_2, 1)[1]
         fine_predicted_2 = torch.max(fine_output_2, 1)[1]
-
-        total += coarse_labels_1.size(0)
-        coarse_correct_1 += (coarse_predicted_1 == coarse_labels_1).sum().item()
-        medium_high_mask_1 = coarse_labels_1 == 1
-        medium_high_total_1 += medium_high_mask_1.sum().item()
-        if medium_high_mask_1.sum() > 0:
-            fine_correct_1 += (fine_predicted_1[medium_high_mask_1] == fine_labels_1[medium_high_mask_1]).sum().item()
-
-        coarse_correct_2 += (coarse_predicted_2 == coarse_labels_2).sum().item()
-        low_medium_mask_2 = coarse_labels_2 == 0
-        low_medium_total_2 += low_medium_mask_2.sum().item()
-        if low_medium_mask_2.sum() > 0:
-            fine_correct_2 += (fine_predicted_2[low_medium_mask_2] == fine_labels_2[low_medium_mask_2]).sum().item()
 
         original_preds_1 = convert_to_original_labels_1(coarse_predicted_1.cpu().numpy(),
                                                         fine_predicted_1.cpu().numpy())
@@ -546,4 +481,96 @@ def test_predict(model,test_dataloder):
 
     test_accuracy = accuracy_score(all_original_labels, all_original_preds)
     return test_accuracy
+
+def pro_load_model_weights_predict(model_path,data,scaler):
+    for i in range(data.shape[0]):
+        data[i] = scaler.transform(data[0].transpose(1,0)).transpose(1,0)
+    test_data = torch.tensor(data.real.astype(float), dtype=torch.float)
+
+    # test_data = torch.Tensor(test_data[np.newaxis, :]).to(DEVICE)
+    test_dataset = TensorDataset(test_data)
+    # source_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=False)
+    target_loader = DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=False)
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    n_channels, n_times = 2, 500
+    model = HierarchicalCrossSubModel(n_channels, n_times, embed_dim=EMBED_DIM).to(device)
+    model.load_state_dict(torch.load(model_path))
+
+    # 优化器和调度器
+    # optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE, weight_decay=WEIGHT_DECAY)
+    optimizer = optim.SGD(model.parameters(), lr=LEARNING_RATE, momentum=0.5)
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='max', factor=0.5, patience=5, verbose=True)
+
+    criterion_cls = LabelSmoothingLoss(classes=2, smoothing=0.1)  # 类别数2，平滑参数为0.1
+    criterion_alignment = ClassAlignmentLoss()
+    # 1. 将模型设置为训练模式（为了启用BN和Dropout，这对于计算正确梯度是必要的）
+    model.train()
+    # 2. 测试时自适应循环
+    for epochs in range(100):  # 在小测试集上迭代少量次数
+        inputs = test_data.to(device)  # 这里我们故意不要标签
+        # 清零梯度
+        optimizer.zero_grad()
+        # 前向传播
+        coarse_output_1, fine_output_1, coarse_output_2, fine_output_2, _, _, _= model(inputs)
+        coarse_predicted_1 = torch.max(coarse_output_1, 1)[1]
+        fine_predicted_1 = torch.max(fine_output_1, 1)[1]
+        coarse_predicted_2 = torch.max(coarse_output_2, 1)[1]
+        fine_predicted_2 = torch.max(fine_output_2, 1)[1]
+
+        original_preds_1 = convert_to_original_labels_1(coarse_predicted_1.cpu().numpy(), fine_predicted_1.cpu().numpy())
+        original_preds_2 = convert_to_original_labels_2(coarse_predicted_2.cpu().numpy(), fine_predicted_2.cpu().numpy())
+
+        # 简单多数投票
+        original_preds = np.round((original_preds_1 + original_preds_2) / 2).astype(int)
+        original_preds = torch.tensor(original_preds.real.astype(float), dtype=torch.float)
+
+        # 计算无监督损失：熵最小化
+        coarse_output_1 = torch.softmax(coarse_output_1, dim=1)
+        fine_output_1 = torch.softmax(fine_output_1, dim=1)
+        coarse_output_2 = torch.softmax(coarse_output_2, dim=1)
+        fine_output_2 = torch.softmax(fine_output_2, dim=1)
+        loss_coarse1 = 1 / -torch.mean(torch.sum(coarse_output_1 * torch.log(coarse_output_1 + 1e-10), dim=1))  # 加上一个小数防止log(0)
+        loss_fine1 = -torch.mean(torch.sum(fine_output_1 * torch.log(fine_output_1 + 1e-10), dim=1))  # 加上一个小数防止log(0)
+        loss_coarse2 = -torch.mean(torch.sum(coarse_output_2 * torch.log(coarse_output_2 + 1e-10), dim=1))  # 加上一个小数防止log(0)
+        loss_fine2 = -torch.mean(torch.sum(fine_output_2 * torch.log(fine_output_2 + 1e-10), dim=1))  # 加上一个小数防止log(0)
+        loss = loss_coarse1 + loss_fine1 + loss_coarse2 + loss_fine2
+        print(loss)
+        # 反向传播
+        loss.backward()
+        # 更新参数
+        optimizer.step()
+
+    model.eval()
+    data = test_data.to(device)
+    coarse_output_1, fine_output_1, coarse_output_2, fine_output_2, _, _, _ = model(data)
+    coarse_predicted_1 = torch.max(coarse_output_1, 1)[1]
+    fine_predicted_1 = torch.max(fine_output_1, 1)[1]
+    coarse_predicted_2 = torch.max(coarse_output_2, 1)[1]
+    fine_predicted_2 = torch.max(fine_output_2, 1)[1]
+    original_preds_1 = convert_to_original_labels_1(coarse_predicted_1.cpu().numpy(), fine_predicted_1.cpu().numpy())
+    original_preds_2 = convert_to_original_labels_2(coarse_predicted_2.cpu().numpy(), fine_predicted_2.cpu().numpy())
+
+    # print(original_preds_1)
+    # print(original_preds_2)
+
+    # 简单多数投票
+    original_preds = np.round((original_preds_1 + original_preds_2) / 2).astype(int)
+    return original_preds
+
+if __name__ == "__main__":
+
+    data = np.random.random((2, 2, 500))
+    # preprocessed_data = preprocess_data(data)
+    model_path = "D:/SubEEG/model/grxl.pth"
+    Train_data_path = "D:/SubEEG/data/grxl.npy"
+    train_npy_data_path = "D:/SubEEG/data/grxl.npy"
+    train_npy_label = "D:/SubEEG/label/grxl.npy"
+    npy_mat = "D:/SubEEG/grxl_0_precess.mat"
+    scaler = preprocessing.StandardScaler()
+    scaler = save_to_train_npy(npy_mat,train_npy_data_path,train_npy_label,scaler)
+    t = pro_load_model_weights_predict(model_path, data,scaler)
+
+    print(t)
+
 

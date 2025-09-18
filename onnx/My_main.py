@@ -3,7 +3,7 @@ import struct
 import threading
 import time
 import random
-
+import numpy as np
 
 class IntDataSender:
     """整数数据发送器 - 模拟发送0,1,2给C++"""
@@ -169,9 +169,64 @@ def enhanced_data_receiver():
         server.close()
         print("连接关闭")
 
+# 接收到Python分类结果: 1 映射标签: 0
+# Label appended: Label= 2 Time= 43462 ms Sample Point= 8280
+# *** Processing Python integer: 2  ***
+# Python sent classification result: Class 2
+# DataOperation received Python classification result: 2
+# 接收到Python分类结果: 2 映射标签: 0
+# Received valid label list from Python: (2, 0)
+# Label appended: Label= 2 Time= 43501 ms Sample Point= 8280
+# *** Processing Python integer: 2  ***
+# Python sent classification result: Class 2
+# DataOperation received Python classification result: 2
+# 接收到Python分类结果: 2 映射标签: 0
+# Label appended: Label= 0 Time= 43532 ms Sample Point= 8280
+# *** Processing Python integer: 0  ***
+# Python sent classification result: Class 0
+# DataOperation received Python classification result: 0
+# 接收到Python分类结果: 0 映射标签: 0
+# Received valid label list from Python: (0, 0)
+# Label appended: Label= 0 Time= 43560 ms Sample Point= 8280
+# *** Processing Python integer: 0  ***
+# Python sent classification result: Class 0
+# DataOperation received Python classification result: 0
+def send_label_list_to_cpp(client_socket, label_value):
+    """发送标签列表到C++（新格式）"""
+    try:
+        if isinstance(label_value, (list, tuple, np.ndarray)):
+            # 确保标签值为整数列表
+            label_list = [int(x) for x in label_value]
+
+            # 打包格式：先发送列表长度，然后发送每个元素
+            # 使用大端序格式
+            length_packet = struct.pack('>i', len(label_list))
+            data_packet = struct.pack('>' + 'B' * len(label_list), *label_list)
+
+            # 组合数据包
+            full_packet = length_packet + data_packet
+
+            bytes_sent = client_socket.send(full_packet)
+            print(f"★ 发送分类结果到C++: {label_list} ({bytes_sent} 字节)")
+            return bytes_sent == len(full_packet)
+        else:
+            # 单个值转换为列表格式
+            label_list = [int(label_value)]
+            length_packet = struct.pack('>i', len(label_list))
+            data_packet = struct.pack('>' + 'B' * len(label_list), *label_list)
+            full_packet = length_packet + data_packet
+
+            bytes_sent = client_socket.send(full_packet)
+            print(f"★ 发送分类结果到C++: {label_list} ({bytes_sent} 字节)")
+            return bytes_sent == len(full_packet)
+
+    except Exception as e:
+        print(f"发送标签失败: {e}")
+        return False
+
 
 def simple_data_receiver_with_sender():
-    """简化的TCP数据接收器 - 兼容原始格式，并发送整数"""
+    """简化的TCP数据接收器 - 兼容原始格式，并发送整数列表"""
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     server.bind(('127.0.0.1', 8888))
@@ -182,12 +237,7 @@ def simple_data_receiver_with_sender():
     client, addr = server.accept()
     print(f"客户端连接: {addr}")
 
-    # 创建整数发送器
-    int_sender = IntDataSender(client)
-
-    # 启动发送器（每5秒发送一次）
-    int_sender.start_sending(interval=5)
-
+    # 注意：不再使用IntDataSender，直接使用新的发送函数
     packet_count = 0
 
     try:
@@ -207,8 +257,20 @@ def simple_data_receiver_with_sender():
                     packet_data = parse_data_packet(data)
                     if packet_data:
                         print_packet_info(packet_count, packet_data)
-                        # 发送响应整数
-                        int_sender.send_int_to_cpp(packet_count % 3)
+
+                        # 发送标签列表响应 - 根据包计数生成不同的标签组合
+                        if packet_count % 6 == 0:
+                            send_label_list_to_cpp(client, [0, 0])
+                        elif packet_count % 6 == 1:
+                            send_label_list_to_cpp(client, [1, 1])
+                        elif packet_count % 6 == 2:
+                            send_label_list_to_cpp(client, [2, 2])
+                        elif packet_count % 6 == 3:
+                            send_label_list_to_cpp(client, [0, 1])
+                        elif packet_count % 6 == 4:
+                            send_label_list_to_cpp(client, [1, 2])
+                        else:
+                            send_label_list_to_cpp(client, [2, 0])
                         continue
 
                 # 检查是否是事件通知
@@ -216,11 +278,21 @@ def simple_data_receiver_with_sender():
                     event_data = parse_event_notification(data)
                     if event_data:
                         print_event_info(packet_count, event_data)
-                        # 发送响应整数
-                        int_sender.send_int_to_cpp(2)
+
+                        # 事件通知响应 - 发送特定的标签组合
+                        event_type = event_data.get('event_type', 0)
+                        if event_type == 51:  # 开始缓存事件
+                            send_label_list_to_cpp(client, [1, 0])
+                            print("▶ 事件51响应: 发送 [1, 0]")
+                        elif event_type == 54:  # 结束缓存事件
+                            send_label_list_to_cpp(client, [0, 1])
+                            print("▶ 事件54响应: 发送 [0, 1]")
+                        else:
+                            send_label_list_to_cpp(client, [2, 2])
+                            print(f"▶ 事件{event_type}响应: 发送 [2, 2]")
                         continue
-            except:
-                pass
+            except Exception as parse_error:
+                print(f"解析新格式时出错: {parse_error}")
 
             # 回退到原始格式解析
             num_doubles = len(data) // 8
@@ -247,8 +319,10 @@ def simple_data_receiver_with_sender():
                         if len(channel_data) > 0:
                             print(f"  范围: {min(channel_data):.6f} ~ {max(channel_data):.6f}")
 
-            # 发送响应整数
-            int_sender.send_int_to_cpp(random.randint(0, 2))
+            # 原始格式响应 - 发送随机标签对
+            random_labels = [random.randint(0, 2), random.randint(0, 2)]
+            send_label_list_to_cpp(client, random_labels)
+            print(f"▶ 原始格式响应: 发送 {random_labels}")
 
     except KeyboardInterrupt:
         print("\n接收被中断")
@@ -257,8 +331,6 @@ def simple_data_receiver_with_sender():
         import traceback
         traceback.print_exc()
     finally:
-        # 停止发送器
-        int_sender.stop_sending()
         client.close()
         server.close()
         print("连接关闭")

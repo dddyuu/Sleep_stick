@@ -1,13 +1,9 @@
 import mne
-import numpy as np
-from mne.preprocessing import ICA
 from scipy.io import savemat
-from scipy.io import loadmat
 import numpy as np
 from scipy.io import loadmat
+from sklearn import preprocessing
 
-from data_trainer import get_data_loaders, load_model_weights_predict
-from train import train_and_save_model
 
 
 def preprocess_eeg(file_path, output_path, downsample_freq=250):
@@ -220,11 +216,13 @@ def preprocess_data(data, downsample_freq=250):
     # ica.apply(raw_ica)
     return raw.get_data()
 
-def save_to_npy(file_path,output_data_path,output_label_path):
+def save_to_train_npy(file_path,output_data_path,output_label_path,scaler):
 
     data1 = loadmat(file_path)["data"].transpose(1,0)
     event_data1 = loadmat(file_path)["events"]["positions"]
-
+    print(data1.shape)
+    scaler.fit(data1)
+    data1 = scaler.transform(data1)
     low_data = data1[event_data1[0][0][0][0]:event_data1[0][0][0][1]]
     low_data = low_data[:low_data.shape[0] // 500 * 500]
     low_data = low_data.reshape(-1, 2, 500)
@@ -247,7 +245,35 @@ def save_to_npy(file_path,output_data_path,output_label_path):
 
     np.save(output_data_path, data_result)
     np.save(output_label_path, label_result)
+    return scaler
+def save_to_test_npy(file_path,output_data_path,output_label_path,scaler):
 
+    data1 = loadmat(file_path)["data"].transpose(1,0)
+    event_data1 = loadmat(file_path)["events"]["positions"]
+    # data1 = scaler.transform(data1)
+    low_data = data1[event_data1[0][0][0][0]:event_data1[0][0][0][1]]
+    low_data = low_data[:low_data.shape[0] // 500 * 500]
+    low_data = low_data.reshape(-1, 2, 500)
+    low_label = np.repeat(0, low_data.shape[0])
+
+    mid_data = data1[event_data1[0][0][0][1]:event_data1[0][0][0][2]]
+    mid_data = mid_data[:mid_data.shape[0] // 500 * 500]
+    mid_data = mid_data.reshape(-1, 2, 500)
+    mid_label = np.repeat(1, mid_data.shape[0])
+
+    high_data = data1[event_data1[0][0][0][2]:event_data1[0][0][0][3]]
+    high_data = high_data[:high_data.shape[0] // 500 * 500]
+    high_data = high_data.reshape(-1, 2, 500)
+    high_label = np.repeat(2, high_data.shape[0])
+
+    data_result = np.concatenate([low_data, mid_data, high_data])
+    print(data_result.shape)
+    label_result = np.concatenate([low_label, mid_label, high_label])
+    print(label_result.shape)
+
+
+    np.save(output_data_path, data_result)
+    np.save(output_label_path, label_result)
 # 使用示例
 if __name__ == "__main__":
     # filename = "grxx"
@@ -285,13 +311,21 @@ if __name__ == "__main__":
     # tdata = preprocess_data(data)
     # label = load_model_weights_predict(output_model_file,tdata)[0]
     # # print(label)
-    npy_path_mat = "D:/SubEEG/grxx_0.mat"
-    npy_mat = "D:/SubEEG/grxx_0_precess.mat"
+    npy_path_mat = "D:/SubEEG/lhxl_0.mat"
+    npy_mat = "D:/SubEEG/lhxl_process.mat"
     preprocess_eeg(npy_path_mat,npy_mat)
-    train_npy_data_path = "D:/SubEEG/data/grww.npy"
-    train_npy_label = "D:/SubEEG/label/grww.npy"
-    save_to_npy(npy_mat,train_npy_data_path,train_npy_label)
+    train_npy_data_path = "D:/SubEEG/data/lhxl.npy"
+    train_npy_label = "D:/SubEEG/label/lhxl.npy"
 
+    # test_npy_data_path = "D:/SubEEG/data/lh.npy"
+    scaler = preprocessing.StandardScaler()
+    scaler = save_to_train_npy(npy_mat,train_npy_data_path,train_npy_label,scaler)
+    npy_path_mat = "D:/SubEEG/lh_0.mat"
+    npy_mat = "D:/SubEEG/lh_0_process.mat"
+    preprocess_eeg(npy_path_mat,npy_mat)
+    test_npy_data_path = "D:/SubEEG/data/lh_0.npy"
+    test_npy_label = "D:/SubEEG/label/lh_0.npy"
+    save_to_test_npy(npy_mat,test_npy_data_path,test_npy_label,scaler)
 
 
 

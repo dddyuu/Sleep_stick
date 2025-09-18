@@ -317,31 +317,97 @@ void FileStorage::onTcpDataReceived()
     processPythonIntData();
 }
 
+//void FileStorage::processPythonIntData()
+//{
+//    // 整数数据处理：每4字节为一个整数
+//    while (tcpReceiveBuffer.size() >= 4) {
+//        // 使用大端序读取整数
+//        QDataStream stream(tcpReceiveBuffer);
+//        stream.setByteOrder(QDataStream::BigEndian);
+//
+//        qint32 receivedInt;
+//        stream >> receivedInt;
+//
+//        // 验证接收到的整数是否在有效范围内 (0, 1, 2)
+//        if (receivedInt >= 0 && receivedInt <= 2) {
+//            qDebug() << "Received valid integer from Python:" << receivedInt;
+//            emit pythonIntReceived(receivedInt);
+//        }
+//        else {
+//            qDebug() << "Received invalid integer from Python:" << receivedInt;
+//        }
+//
+//        // 移除已处理的4字节
+//        tcpReceiveBuffer.remove(0, 4);
+//    }
+//}
 void FileStorage::processPythonIntData()
 {
-    // 简单的整数数据处理：每4字节为一个整数
+    // 处理新的数据格式：4字节长度 + N字节数据
     while (tcpReceiveBuffer.size() >= 4) {
-        // 使用大端序读取整数
+        // 首先读取长度
         QDataStream stream(tcpReceiveBuffer);
         stream.setByteOrder(QDataStream::BigEndian);
 
-        qint32 receivedInt;
-        stream >> receivedInt;
+        qint32 length;
+        stream >> length;
 
-        // 验证接收到的整数是否在有效范围内 (0, 1, 2)
-        if (receivedInt >= 0 && receivedInt <= 2) {
-            qDebug() << "Received valid integer from Python:" << receivedInt;
-            emit pythonIntReceived(receivedInt);
+        // 检查长度是否合理（避免恶意数据）
+        if (length < 0 || length > 1000) {
+            qDebug() << "Received invalid length from Python:" << length;
+            // 清空缓冲区避免持续错误
+            tcpReceiveBuffer.clear();
+            return;
+        }
+
+        // 检查是否有足够的数据
+        if (tcpReceiveBuffer.size() < 4 + length) {
+            // 数据还没接收完，等待更多数据
+            break;
+        }
+
+        // 读取标签数据
+        QList<quint8> labelList;
+
+        // 跳过已读取的4字节长度
+        tcpReceiveBuffer.remove(0, 4);
+
+        for (int i = 0; i < length; i++) {
+            if (tcpReceiveBuffer.size() > i) {
+                quint8 labelValue = static_cast<quint8>(tcpReceiveBuffer.at(i));
+                labelList.append(labelValue);
+            }
+        }
+
+        // 移除已处理的数据字节
+        tcpReceiveBuffer.remove(0, length);
+
+        // 验证接收到的标签数据
+        bool isValid = true;
+        for (quint8 label : labelList) {
+            if (label > 2) { // 假设有效标签范围是0-2
+                isValid = false;
+                break;
+            }
+        }
+
+        if (isValid && !labelList.isEmpty()) {
+            qDebug() << "Received valid label list from Python:" << labelList;
+
+            // 处理接收到的标签列表
+            for (quint8 label : labelList) {
+                appendLabel(label); // 逐个添加标签
+                emit pythonIntReceived(static_cast<int>(label)); // 发送信号
+            }
+
+            // 或者可以添加一个新的信号来处理整个列表
+            // emit pythonLabelListReceived(labelList);
         }
         else {
-            qDebug() << "Received invalid integer from Python:" << receivedInt;
+            qDebug() << "Received invalid label list from Python:" << labelList;
         }
-
-        // 移除已处理的4字节
-        tcpReceiveBuffer.remove(0, 4);
     }
 }
-
 void FileStorage::startCaching()
 {
     // 计算 3 分钟需要的采样点数 (3分钟 * 60秒 * 采样率 * 通道数)

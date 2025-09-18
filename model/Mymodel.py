@@ -1,4 +1,3 @@
-
 import torch
 import torch.nn as nn
 import numpy as np
@@ -9,67 +8,85 @@ import torch.nn.functional as F
 warnings.filterwarnings("ignore")
 BATCH_SIZE = 128
 
-
-def fft_torch(x, dim=-1):
-    """
-    代替 torch.fft.fft(x, dim=-1)，支持 ONNX 导出
-    输入:
-        x: (..., N) 实数张量
-    输出:
-        (..., N, 2) 张量，最后一维 [实部, 虚部]
-    """
-    N = x.size(dim)
-    device = x.device
-
-    # 构造 DFT 矩阵
-    n = torch.arange(N, device=device).float()
-    k = n.view(-1, 1)  # (N, 1)
-
-    angle = 2 * np.pi * k * n / N
-    W_real = torch.cos(angle)  # (N, N)
-    W_imag = -torch.sin(angle) # (N, N)
-
-    # 把 x 移到最后一维
-    x_ = x.transpose(dim, -1)  # (..., N)
-
-    # 计算实部和虚部
-    real = torch.matmul(x_, W_real)  # (..., N)
-    imag = torch.matmul(x_, W_imag)  # (..., N)
-
-    # 拼接 [实部, 虚部]
-    out = torch.stack([real, imag], dim=-1)  # (..., N, 2)
-
-    # 还原维度顺序
-    if dim != -1:
-        out = out.transpose(dim, -2)
-
-    return out
-
-
 class AnalyticSignal(nn.Module):
     def __init__(self):
         super().__init__()
 
     def forward(self, x):
-        # 为ONNX导出简化：返回输入与零张量，避免复杂频域运算
-        real = x
-        imag = torch.zeros_like(x)
-        return real, imag
+        """
+        正确的希尔伯特变换实现
+        输入: (batch, seq_len)
+        输出: (batch, seq_len) 复数张量
+        """
+        N = x.shape[-1]
 
+        # FFT
+        X = torch.fft.fft(x, dim=-1)
+
+        # 创建希尔伯特滤波器
+        h = torch.zeros_like(x)
+        if N % 2 == 0:
+            h[..., 0] = h[..., N // 2] = 1
+            h[..., 1:N // 2] = 2
+        else:
+            h[..., 0] = 1
+            h[..., 1:(N + 1) // 2] = 2
+
+        # 频域滤波
+        X = X * h
+
+        # IFFT
+        return torch.fft.ifft(X, dim=-1)
 
 class PhaseLockingMatrix(nn.Module):
     def __init__(self, epsilon=1e-8):
         super().__init__()
         self.hilbert = AnalyticSignal()
-        self.epsilon = epsilon
+        self.epsilon = epsilon  # 防止除以零的小量
 
     def forward(self, x):
-        # 为ONNX导出简化：返回恒等邻接矩阵（不引入复数与FFT）
+        """
+        输入: (batch, 2, seq_len)
+        输出: (batch, 2, 2) 邻接矩阵
+        """
+        FP1, FP2 = x[:, 0], x[:, 1]  # 各(batch, seq_len)
+
+        # 计算解析信号
+        analytic1 = self.hilbert(FP1)
+        analytic2 = self.hilbert(FP2)
+
+        # 计算相位差
+        phase_diff = torch.atan2(analytic1.imag, analytic1.real) - torch.atan2(analytic2.imag, analytic2.real)
+        # print((torch.exp(1j * phase_diff)).shape)
+
+        # 计算PLV (Phase Locking Value)
+        raw_plv = torch.abs(torch.mean(torch.exp(phase_diff), dim=-1))  # (batch,)
+        # print(plv.shape)
+
+        # 构建动态连接矩阵
         batch_size = x.shape[0]
         device = x.device
-        adj = torch.eye(2, device=device).unsqueeze(0).repeat(batch_size, 1, 1)
-        return adj
 
+        # 创建单位矩阵为基础
+        adj = torch.eye(2, device=device).repeat(batch_size, 1, 1)  # (batch, 2, 2)
+
+        # 设置PLV值
+        adj[:, 0, 1] = raw_plv
+        adj[:, 1, 0] = raw_plv
+
+        # 归一化方案（保持对角线为1）
+        # 方法1: 最大最小值归一化 (推荐)
+        plv_min = raw_plv.min().clamp(min=self.epsilon)
+        plv_max = raw_plv.max().clamp(min=plv_min + self.epsilon)
+        normalized_plv = (raw_plv - plv_min) / (plv_max - plv_min)
+
+        adj[:, 0, 1] = adj[:, 1, 0] = normalized_plv
+
+        # # 强制确保数值范围
+        # adj[:, 0, 1] = adj[:, 0, 1].clamp(min=self.epsilon, max=1 - self.epsilon)
+        # adj[:, 1, 0] = adj[:, 1, 0].clamp(min=self.epsilon, max=1 - self.epsilon)
+
+        return adj
 
 class GraphConvolution(nn.Module):
 
@@ -79,11 +96,11 @@ class GraphConvolution(nn.Module):
 
         self.num_in = num_in
         self.num_out = num_out
-        self.weight = nn.Parameter(torch.FloatTensor(num_in, num_out))
+        self.weight = nn.Parameter(torch.FloatTensor(num_in, num_out).cuda())
         nn.init.kaiming_normal_(self.weight, )
         self.bias = None
         if bias:
-            self.bias = nn.Parameter(torch.FloatTensor(num_out))
+            self.bias = nn.Parameter(torch.FloatTensor(num_out).cuda())
             nn.init.zeros_(self.bias)
 
     def forward(self, x, adj):
@@ -98,7 +115,7 @@ def generate_cheby_adj(A, K):
     support = []
     for i in range(K):
         if i == 0:
-            support.append(torch.eye(A.shape[1], device=A.device))
+            support.append(torch.eye(A.shape[1]).cuda())
         elif i == 1:
             support.append(A)
         else:
@@ -257,16 +274,42 @@ class ST_SF_Module(nn.Module):
         return fused + residual
 
 class SpectralConv2d(nn.Module):
-    """ONNX友好的频谱替代卷积层: 直接在时域进行2D卷积。"""
+    """频谱卷积层 - 在频域进行卷积操作"""
 
     def __init__(self, in_channels, out_channels, n_fft=64, hop_length=16):
         super().__init__()
-        # 简化为普通2D卷积，保持输出通道一致
-        self.conv = nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1)
+        self.n_fft = n_fft
+        self.hop_length = hop_length
+        self.conv = nn.Conv2d(in_channels * 66, out_channels, kernel_size=3, padding=1)
 
     def forward(self, x):
-        # 直接在输入上进行2D卷积: (batch, 1, channels, time_points) -> (batch, out_channels, channels, time_points)
-        out = self.conv(x)
+        # x形状: (batch, 1, channels, time_points)
+        batch, _, channels, _ = x.shape
+
+        # 对每个通道进行STFT
+        stft_real = []
+        stft_imag = []
+        for i in range(channels):
+            # 计算单通道STFT
+            stft = torch.stft(x[:, 0, i, :], n_fft=self.n_fft, hop_length=self.hop_length,
+                              return_complex=True)
+            stft_real.append(stft.real)
+            stft_imag.append(stft.imag)
+
+        # 合并所有通道
+        stft_real = torch.stack(stft_real, dim=1).unsqueeze(1)  # (batch, 1, channels, freq, time)
+        stft_imag = torch.stack(stft_imag, dim=1).unsqueeze(1)
+
+        # 合并实部和虚部
+        stft_combined = torch.cat([stft_real, stft_imag], dim=1)  # (batch, 2, channels, freq, time)
+
+        # 调整维度用于2D卷积
+        stft_combined = stft_combined.permute(0, 1, 3, 2, 4)  # (batch, 2, freq, channels, time)
+        b, _, f, c, t = stft_combined.shape
+        stft_combined = stft_combined.reshape(b, -1, c, t)  # (batch, 2*freq, channels, time)
+
+        # 频域卷积
+        out = self.conv(stft_combined)
         return out
 
 class SpatialAttention3D(nn.Module):
@@ -327,7 +370,13 @@ class CoarseFeatureExtractor(nn.Module):
             nn.AvgPool2d(kernel_size=(1, 4), stride=(1, 4)),
             nn.Dropout(dropout)
         )
-
+        # self.attention = nn.Sequential(
+        #     nn.AdaptiveAvgPool2d(1),
+        #     nn.Conv2d(64, 64 // 16, kernel_size=1),
+        #     nn.ReLU(),
+        #     nn.Conv2d(64 // 16, 64, kernel_size=1),
+        #     nn.Sigmoid()
+        # )
         self.attention = CBAM(64)
         self.extra_conv = nn.Sequential(
             nn.Conv2d(64, 128, kernel_size=(1, 25), stride=1, padding=(0, 12), bias=False),
@@ -344,7 +393,7 @@ class CoarseFeatureExtractor(nn.Module):
             nn.Linear(256, embed_dim)
         )
         self.plm = PhaseLockingMatrix()
-        self.SGCN1 = Chebynet(xdim=[BATCH_SIZE, 2, 250], K=2, num_out=250, dropout=0.)
+        self.SGCN1 = Chebynet(xdim=[BATCH_SIZE, 2, 500], K=2, num_out=500, dropout=0.)
 
     def _get_feature_size(self, n_times):
         times_after_conv1 = (n_times // 4)
@@ -353,10 +402,19 @@ class CoarseFeatureExtractor(nn.Module):
         return 128 * times_after_conv3
 
     def forward(self, x):
+        # # 动态相位矩阵构建
+        # adj = self.plm(x)
+        #
+        # # 图卷积处理
+        # # x = self.graph_conv(x, adj)
+        # x = self.SGCN1(x, adj)
+
         x = x.unsqueeze(1)
         x = self.temporal_conv(x)
         x = self.spatial_conv(x)
-
+        # print(x.shape)
+        # x = self.attention(x)
+        # x = x * attention_weights
         x = self.extra_conv(x)
         x = x.view(x.size(0), -1)
         x = self.feature_fusion(x)
@@ -409,23 +467,39 @@ class FineFeatureExtractor(nn.Module):
         # 动态相位矩阵构建
         adj = self.plm(x)
 
-
+        # 图卷积处理
+        # x = self.graph_conv(x, adj)
         x1 = self.SGCN1(x, adj)
         x2 = self.SGCN2(x, adj)
         x3 = self.SGCN3(x, adj)
         x = torch.cat([x1, x2, x3], dim=2)
+        # print(x.shape)
+
+
         x = x.unsqueeze(1)
+        # print(x.shape)
         x1 = self.temporal_conv1(x)
         x2 = self.temporal_conv2(x)
         x3 = self.temporal_conv3(x)
+        # print(x1.shape, x2.shape, x3.shape)
         x = torch.cat([x1, x2, x3], dim=1)
+        # print(x.shape)
         x = self.bn_temporal(x)
         x = self.relu(x)
+        # x = self.pool(x)
+        # # print(x.shape)
+        # # x = self.dropout(x)
+        # x = self.spatial_conv(x)
+        # x = self.attention(x)
+        # x = self.extra_conv(x)
+        # print(x.shape)
         x = x.view(x.size(0), -1)
+
         x = self.feature_fusion(x)
         return x
 
-
+import torch
+import torch.nn as nn
 
 
 class DomainClassifier(nn.Module):
@@ -527,13 +601,15 @@ class HierarchicalCrossSubModel(nn.Module):
         st_sf_feat = self.st_sf_module(x)
         # 特征融合
         combined_feat = torch.cat([traditional_feat, st_sf_feat], dim=1)
+        # print(combined_feat.shape)
 
         domain_out = self.domain_classifier(combined_feat, alpha)
+        # print(domain_out.shape)
         coarse_out_1 = self.coarse_classifier_1(combined_feat)
         fine_out_1 = self.fine_classifier_1(combined_feat)
         coarse_out_2 = self.coarse_classifier_2(combined_feat)
         fine_out_2 = self.fine_classifier_2(combined_feat)
-        return coarse_out_1, fine_out_1, coarse_out_2, fine_out_2, domain_out, fine_feat
+        return coarse_out_1, fine_out_1, coarse_out_2, fine_out_2, combined_feat, domain_out, fine_feat
 
 def convert_to_original_labels_1(coarse_preds, fine_preds):
     """
@@ -582,13 +658,11 @@ def convert_to_original_labels_2(coarse_preds, fine_preds):
     original_preds[coarse_preds == 1] = 2
 
     return original_preds
-
-
-
 if __name__ == "__main__":
     model = HierarchicalCrossSubModel(n_channels=2, n_times=500, embed_dim=64)
-    x = torch.randn(2, 2, 500)
-    coarse_out_1, fine_out_1, coarse_out_2, fine_out_2, domain_out, fine_feat = model(x)
+    model = model.cuda()
+    x = torch.randn(128, 2, 500).cuda()
+    coarse_out_1, fine_out_1, coarse_out_2, fine_out_2, _, domain_out, fine_feat = model(x)
     print(coarse_out_1.shape)  # (128, 2)
     print(fine_out_1.shape)    # (128, 2)
     print(coarse_out_2.shape)  # (128, 2)

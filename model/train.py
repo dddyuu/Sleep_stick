@@ -1,7 +1,7 @@
 import torch
 import warnings
 import torch.optim as optim
-from model_origin import *
+from Mymodel import *
 from data_trainer import *
 
 warnings.filterwarnings("ignore")
@@ -13,7 +13,7 @@ def train_and_save_model(train_loader, test_loader, model_path):
     model = HierarchicalCrossSubModel(n_channels, n_times, embed_dim=EMBED_DIM).to(DEVICE)
 
     # 优化器和调度器
-    optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE, weight_decay=WEIGHT_DECAY)
+    optimizer = optim.SGD(model.parameters(), lr=LEARNING_RATE, momentum=0.5)
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='max', factor=0.5, patience=5, verbose=True)
     print("Start training model...")
     max_loss = 100
@@ -35,11 +35,11 @@ def train_and_save_model(train_loader, test_loader, model_path):
     print(f"best准确率：{min_acc:.4f}")
 
 if __name__ == "__main__":
-    train_npy_data_path = "D:/SubEEG/data/gr.npy"
-    test_npy_data_path = "D:/SubEEG/data/grr.npy"
-    train_npy_label = "D:/SubEEG/label/gr.npy"
-    test_npy_label = "D:/SubEEG/label/grr.npy"
-    model_path = "D:/SubEEG/model/grr.pth"
+    train_npy_data_path = "D:/SubEEG/data/lhxl.npy"
+    test_npy_data_path = "D:/SubEEG/data/lh_0.npy"
+    train_npy_label = "D:/SubEEG/label/lhxl.npy"
+    test_npy_label = "D:/SubEEG/label/lh_0.npy"
+    model_path = "D:/SubEEG/model/lhxl.pth"
     train_loder , test_loder = Pget_data_loaders(train_npy_data_path,train_npy_label,test_npy_data_path,train_npy_label)
     print(1)
     train_and_save_model(train_loder,test_loder,model_path)

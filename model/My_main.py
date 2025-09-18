@@ -7,9 +7,7 @@ import logging
 from datetime import datetime
 import traceback
 import numpy as np
-
 from scipy.io import savemat
-import numpy as np
 from scipy.io import loadmat
 from data_trainer import *
 # 配置日志
@@ -25,7 +23,7 @@ logging.basicConfig(
 # 导入您的处理模块
 try:
     from data_trainer import get_data_loaders, load_model_weights_predict
-    from preprocess import preprocess_eeg, save_to_npy, preprocess_data
+    from preprocess import preprocess_eeg, save_to_train_npy, preprocess_data, save_to_test_npy
     from train import train_and_save_model
 
     MODULES_AVAILABLE = True
@@ -54,14 +52,15 @@ class EEGDataReceiver:
         self.buffer = b''
         self.processing_threads = []  # 跟踪后台处理线程
 
-        # 简单的计数器和标志
-        self.event_51_count = 0
-        self.current_model_path = ""
-        self.first_training_completed = False
+        # 计数器和标志
+        self.event_51_count = 1
+        self.current_model_path = "D:/SubEEG/model/lh.pth"
+        # self.current_model_path = ""
+        self.first_training_completed = True
 
         # 实时分类缓冲区（仅用于第二次及之后，固定2通道）
         self.realtime_buffer = [[], []]  # 固定2通道
-        self.target_samples = 500
+        self.target_samples = 750
 
         # 创建必要的目录
         self._ensure_directories()
@@ -89,6 +88,38 @@ class EEGDataReceiver:
             logging.error(f"发送标签失败: {e}")
             return False
 
+    def send_2label_to_cpp(self, label_value):
+        """发送标签值回C++"""
+        try:
+            if not self.client_socket:
+                return False
+
+            # 处理列表格式的标签
+            if isinstance(label_value, (list, tuple, np.ndarray)):
+                # 确保标签值为整数列表
+                label_list = [int(x) for x in label_value]
+
+                # 打包格式：先发送列表长度，然后发送每个元素
+                # 使用大端序格式
+                length_packet = struct.pack('>i', len(label_list))
+                data_packet = struct.pack('>' + 'B' * len(label_list), *label_list)
+
+                # 组合数据包
+                full_packet = length_packet + data_packet
+
+                bytes_sent = self.client_socket.send(full_packet)
+                logging.info(f"★ 发送分类结果到C++: {label_list}")
+                return bytes_sent == len(full_packet)
+            else:
+                # 保持原有的单个整数发送方式（向后兼容）
+                label_packet = struct.pack('>i', int(label_value))
+                bytes_sent = self.client_socket.send(label_packet)
+                logging.info(f"★ 发送分类结果到C++: {label_value}")
+                return bytes_sent == 4
+
+        except Exception as e:
+            logging.error(f"发送标签失败: {e}")
+            return False
     def process_realtime_classification(self, eeg_data):
         """处理实时EEG数据进行分类 - 确保正确处理2通道数据"""
         try:
@@ -142,47 +173,79 @@ class EEGDataReceiver:
                 if len(self.realtime_buffer[0]) >= self.target_samples and len(
                         self.realtime_buffer[1]) >= self.target_samples:
                     # 提取最新的500个采样点 - 确保是2通道
-                    data_for_classification = np.zeros((2, self.target_samples))
+                    data_for_classification = np.zeros((2, 2, 500))
+                    logging.info(f"实时分类 - 数据形状: {data_for_classification.shape}")
+                    # 修改数据形状为(2, 2, 500)，总共1000个样本点
+                    # 修改数据形状为(2, 2, 500)，第一维度2为batch size，第二维度2为通道
+                    for batch_idx in range(2):  # 遍历batch
+                        for ch in range(2):  # 遍历通道
+                            # 计算当前batch和通道对应的起始位置
+                            overlap_samples = 250  # 重叠的采样点数
+                            samples_per_batch = 500  # 每个batch的采样点数
+                            start_idx = batch_idx * overlap_samples
+                            end_idx = start_idx + samples_per_batch
 
-                    for ch in range(2):
-                        # 取最后500个采样点
-                        if len(self.realtime_buffer[ch]) >= self.target_samples:
-                            channel_data = self.realtime_buffer[ch][-self.target_samples:]
-                            data_for_classification[ch] = channel_data
-                        else:
-                            # 如果数据不足，用零填充
-                            available_data = self.realtime_buffer[ch]
-                            if len(available_data) > 0:
-                                data_for_classification[ch][:len(available_data)] = available_data
+                            # 取对应的采样点
+                            if len(self.realtime_buffer[ch]) >= end_idx:
+                                channel_data = self.realtime_buffer[ch][start_idx:end_idx]
+                                data_for_classification[batch_idx, ch, :] = channel_data
+                            else:
+                                # 如果数据不足，用零填充
+                                available_data = self.realtime_buffer[ch][start_idx:]
+                                if len(available_data) > 0:
+                                    data_for_classification[batch_idx, ch, :len(available_data)] = available_data
+                                    # 剩余部分保持为零（如果初始化为零）
+                                # 如果没有可用数据，该位置保持为零
 
                     logging.info(f"实时分类 - 数据形状: {data_for_classification.shape}")
+                    # for ch in range(2):
+                    #     # 取最后500个采样点
+                    #     if len(self.realtime_buffer[ch]) >= self.target_samples:
+                    #         channel_data = self.realtime_buffer[ch][-self.target_samples:]
+                    #         data_for_classification[ch] = channel_data
+                    #     else:
+                    #         # 如果数据不足，用零填充
+                    #         available_data = self.realtime_buffer[ch]
+                    #         if len(available_data) > 0:
+                    #             data_for_classification[ch][:len(available_data)] = available_data
+                    #
+                    # logging.info(f"实时分类 - 数据形状: {data_for_classification.shape}")
 
                     # 验证数据形状
-                    if data_for_classification.shape[0] != 2:
+                    if data_for_classification.shape[1] != 2:
                         logging.error(f"数据通道数错误: {data_for_classification.shape[0]}, 期望2")
                         return
 
                     # 预处理数据
                     try:
-                        preprocessed_data = preprocess_data(data_for_classification)
-                        logging.info(f"不预处理后数据形状: {preprocessed_data.shape}")
+                        # preprocessed_data = preprocess_data(data_for_classification)
+                        # logging.info(f"不预处理后数据形状: {preprocessed_data.shape}")
 
                         # 进行分类预测
-                        logging.info(f"不进行预处理-数据形状: {preprocessed_data.shape}")
-                        label = load_model_weights_predict(self.current_model_path, preprocessed_data)[0]
+                        # logging.info(f"不进行预处理-数据形状: {preprocessed_data.shape}")
+                        # label = load_model_weights_predict(self.current_model_path, preprocessed_data)[0]
+                        scaler = preprocessing.StandardScaler()
+                        train_npy_mat = "D:/SubEEG/lhxl_process.mat"
+                        # test_npy_label = "D:/SubEEG/label/grr.npy"
+                        # model_path = "D:/SubEEG/model/grr.pth"
+                        train_npy_data_path = "D:/SubEEG/data/lhxl.npy"
+                        # test_npy_data_path = "D:/SubEEG/data/grr.npy"
+                        train_npy_label = "D:/SubEEG/label/lhxl.npy"
+                        scaler = save_to_train_npy(train_npy_mat, train_npy_data_path, train_npy_label, scaler)
+                        label = pro_load_model_weights_predict(self.current_model_path, data_for_classification, scaler)
                         # label = load_model_weights_predict(self.current_model_path, preprocessed_data)[0]
 
                         logging.info(f"★ 实时分类结果: {label} (模型: {os.path.basename(self.current_model_path)})")
 
                         # 发送标签到C++
-                        self.send_label_to_cpp(label)
+                        self.send_2label_to_cpp(label)
 
                     except Exception as e:
                         logging.error(f"实时分类处理失败: {e}")
                         logging.debug(traceback.format_exc())
 
                     # 保持缓冲区大小，移除旧数据（保留250个采样点的重叠）
-                    overlap = self.target_samples // 2
+                    overlap = 250
                     for ch in range(2):
                         if len(self.realtime_buffer[ch]) > overlap:
                             self.realtime_buffer[ch] = self.realtime_buffer[ch][-overlap:]
@@ -446,6 +509,7 @@ class EEGDataReceiver:
 
         def safe_background_process():
             thread_id = threading.current_thread().ident
+            scaler = preprocessing.StandardScaler()
             try:
                 if not filename:
                     logging.warning(f"[线程{thread_id}] 事件54: 文件名为空，跳过处理")
@@ -502,28 +566,32 @@ class EEGDataReceiver:
                 # 步骤2: 转换为numpy格式 - 保持原有
                 try:
                     logging.info(f"[线程{thread_id}] 步骤2: 转换为numpy格式")
-                    save_to_npy(output_mat_file, output_npy_data, output_npy_label)
+
+
 
                     logging.info(f"[线程{thread_id}] 步骤2完成: numpy转换")
                 except Exception as e:
                     logging.error(f"[线程{thread_id}] 步骤2失败 - numpy转换错误: {e}")
                     logging.debug(f"[线程{thread_id}] numpy转换错误详情:\n{traceback.format_exc()}")
                     return
-
-                if not os.path.exists(output_npy_data) or not os.path.exists(output_npy_label):
-                    logging.error(f"[线程{thread_id}] numpy文件生成失败")
-                    return
+                #
+                # if not os.path.exists(output_npy_data) or not os.path.exists(output_npy_label):
+                #     logging.error(f"[线程{thread_id}] numpy文件生成失败")
+                #     return
 
                 # 步骤3: 训练模型 - 保持原有
                 try:
                     logging.info(f"[线程{thread_id}] 步骤3: 训练模型")
                     # train_loader, val_loader = get_data_loaders(output_npy_data, output_npy_label, batch_size=128)
                     # train_and_save_model(train_loader, val_loader, output_model_file)
-                    train_npy_data_path = "D:/SubEEG/data/dddxl.npy"
+                    train_npy_data_path = "D:/SubEEG/data/lhxl.npy"
                     # test_npy_data_path = "D:/SubEEG/data/grr.npy"
-                    train_npy_label = "D:/SubEEG/label/dddxl.npy"
+                    train_npy_label = "D:/SubEEG/label/lhxl.npy"
+                    train_npy_mat = "D:/SubEEG/lhxl_process.mat"
                     # test_npy_label = "D:/SubEEG/label/grr.npy"
                     # model_path = "D:/SubEEG/model/grr.pth"
+                    scaler = save_to_train_npy(train_npy_mat, train_npy_data_path, train_npy_label, scaler)
+                    save_to_test_npy(output_mat_file, output_npy_data, output_npy_label,scaler)
                     train_loder, test_loder = Pget_data_loaders(train_npy_data_path, train_npy_label,
                                                                 output_npy_data, output_npy_label)
                     train_and_save_model(train_loder, test_loder, output_model_file)
