@@ -87,20 +87,17 @@ class PhaseLockingMatrix(nn.Module):
         # adj[:, 1, 0] = adj[:, 1, 0].clamp(min=self.epsilon, max=1 - self.epsilon)
 
         return adj
-
 class GraphConvolution(nn.Module):
-
     def __init__(self, num_in, num_out, bias=False):
-
         super(GraphConvolution, self).__init__()
-
         self.num_in = num_in
         self.num_out = num_out
-        self.weight = nn.Parameter(torch.FloatTensor(num_in, num_out).cuda())
-        nn.init.kaiming_normal_(self.weight, )
+        # 移除硬编码的.cuda()，让框架自动处理设备
+        self.weight = nn.Parameter(torch.FloatTensor(num_in, num_out))
+        nn.init.kaiming_normal_(self.weight)
         self.bias = None
         if bias:
-            self.bias = nn.Parameter(torch.FloatTensor(num_out).cuda())
+            self.bias = nn.Parameter(torch.FloatTensor(num_out))
             nn.init.zeros_(self.bias)
 
     def forward(self, x, adj):
@@ -113,15 +110,50 @@ class GraphConvolution(nn.Module):
 
 def generate_cheby_adj(A, K):
     support = []
+    device = A.device  # 从输入张量获取设备信息
     for i in range(K):
         if i == 0:
-            support.append(torch.eye(A.shape[1]).cuda())
+            support.append(torch.eye(A.shape[1], device=device))  # 使用相同设备
         elif i == 1:
             support.append(A)
         else:
             temp = torch.matmul(support[-1], A)
             support.append(temp)
     return support
+# class GraphConvolution(nn.Module):
+#
+#     def __init__(self, num_in, num_out, bias=False):
+#
+#         super(GraphConvolution, self).__init__()
+#
+#         self.num_in = num_in
+#         self.num_out = num_out
+#         self.weight = nn.Parameter(torch.FloatTensor(num_in, num_out).cuda())
+#         nn.init.kaiming_normal_(self.weight, )
+#         self.bias = None
+#         if bias:
+#             self.bias = nn.Parameter(torch.FloatTensor(num_out).cuda())
+#             nn.init.zeros_(self.bias)
+#
+#     def forward(self, x, adj):
+#         out = torch.matmul(adj, x)
+#         out = torch.matmul(out, self.weight)
+#         if self.bias is not None:
+#             return out + self.bias
+#         else:
+#             return out
+#
+# def generate_cheby_adj(A, K):
+#     support = []
+#     for i in range(K):
+#         if i == 0:
+#             support.append(torch.eye(A.shape[1]).cuda())
+#         elif i == 1:
+#             support.append(A)
+#         else:
+#             temp = torch.matmul(support[-1], A)
+#             support.append(temp)
+#     return support
 
 class Chebynet(nn.Module):
     def __init__(self, xdim, K, num_out, dropout):
@@ -658,6 +690,33 @@ def convert_to_original_labels_2(coarse_preds, fine_preds):
     original_preds[coarse_preds == 1] = 2
 
     return original_preds
+
+def convert_hierarchical_to_original_prob(coarse_probs_1, fine_probs_1, coarse_probs_2, fine_probs_2, fusion_weight):
+    """
+    将分层预测的概率转换为原始三分类概率
+    使用可学习的融合权重
+    """
+    batch_size = coarse_probs_1.size(0)
+
+    # 策略1: 低-中高 + 中-高
+    prob_strategy1 = torch.zeros(batch_size, 3, device=coarse_probs_1.device)
+    prob_strategy1[:, 0] = coarse_probs_1[:, 0]  # 低负荷
+    prob_strategy1[:, 1] = coarse_probs_1[:, 1] * fine_probs_1[:, 0]  # 中负荷
+    prob_strategy1[:, 2] = coarse_probs_1[:, 1] * fine_probs_1[:, 1]  # 高负荷
+
+    # 策略2: 低中-高 + 低-中
+    prob_strategy2 = torch.zeros(batch_size, 3, device=coarse_probs_2.device)
+    prob_strategy2[:, 0] = coarse_probs_2[:, 0] * fine_probs_2[:, 0]  # 低负荷
+    prob_strategy2[:, 1] = coarse_probs_2[:, 0] * fine_probs_2[:, 1]  # 中负荷
+    prob_strategy2[:, 2] = coarse_probs_2[:, 1]  # 高负荷
+
+    # 使用可学习的权重进行融合
+    # weight = torch.softmax(fusion_weight, dim=0)
+    weight = fusion_weight
+    # print(weight)
+    final_probs = weight[0] * prob_strategy1 + weight[1] * prob_strategy2
+
+    return final_probs
 if __name__ == "__main__":
     model = HierarchicalCrossSubModel(n_channels=2, n_times=500, embed_dim=64)
     model = model.cuda()
