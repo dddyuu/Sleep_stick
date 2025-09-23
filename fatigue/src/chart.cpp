@@ -1,7 +1,6 @@
 ﻿#include "chart.h"
 #include "QDebug"
 
-
 Chart::Chart(QWidget* parent, QString _chartname) : QWidget(parent) {
     setParent(parent);
     chartname = _chartname;
@@ -28,20 +27,6 @@ Chart::Chart(QWidget* parent, QString _chartname) : QWidget(parent) {
     pieChartView = nullptr;
     pieSeries = nullptr;
     series_local = nullptr; // 本地数据曲线
-    // localLabelData = QList<uint8_t>();
-    // init();
-    // QPushButton* testBtn = new QPushButton("TEST", this);
-    // testBtn->setGeometry(10, 10, 100, 30); // 绝对定位
-    // // 确保按钮启用
-    // testBtn->setEnabled(true);
-
-    // 确保按钮可见
-    // testBtn->setVisible(true);
-    // connect(testBtn, &QPushButton::clicked, []() {
-    //     qDebug() << "测试按钮被点击!";
-    //     });
-
-
 }
 
 void Chart::init() {
@@ -127,9 +112,15 @@ void Chart::init() {
     QPushButton* btnStopPlot = new QPushButton("停止绘制");
     btnStopPlot->setObjectName("stopPlotButton");
 
-    // 添加保存Excel按钮
+    // 添加导出按钮
     QPushButton* btnSaveExcel = new QPushButton("导出Excel");
     btnSaveExcel->setObjectName("saveExcelButton");
+
+    QPushButton* btnSaveChart = new QPushButton("导出图表");
+    btnSaveChart->setObjectName("saveChartButton");
+
+    QPushButton* btnSaveAll = new QPushButton("导出全部");
+    btnSaveAll->setObjectName("saveAllButton");
 
     // 设置按钮样式 - 增加悬停效果和按下效果
     QString buttonStyle = "QPushButton {"
@@ -170,11 +161,35 @@ void Chart::init() {
         "background-color: #1e8449;"
         "}";
 
+    // 图表按钮特殊样式
+    QString chartButtonStyle = "QPushButton#saveChartButton {"
+        "background-color: #f39c12;" // 橙色表示图表
+        "}"
+        "QPushButton#saveChartButton:hover {"
+        "background-color: #d68910;"
+        "}"
+        "QPushButton#saveChartButton:pressed {"
+        "background-color: #b7950b;"
+        "}";
+
+    // 全部按钮特殊样式
+    QString allButtonStyle = "QPushButton#saveAllButton {"
+        "background-color: #9b59b6;" // 紫色表示全部
+        "}"
+        "QPushButton#saveAllButton:hover {"
+        "background-color: #8e44ad;"
+        "}"
+        "QPushButton#saveAllButton:pressed {"
+        "background-color: #7d3c98;"
+        "}";
+
     btn1min->setStyleSheet(buttonStyle);
     btn2min->setStyleSheet(buttonStyle);
     btn5min->setStyleSheet(buttonStyle);
     btnStopPlot->setStyleSheet(buttonStyle + stopButtonStyle);
     btnSaveExcel->setStyleSheet(buttonStyle + excelButtonStyle);
+    btnSaveChart->setStyleSheet(buttonStyle + chartButtonStyle);
+    btnSaveAll->setStyleSheet(buttonStyle + allButtonStyle);
 
     // 设置按钮固定宽度
     btn1min->setFixedWidth(80);
@@ -182,6 +197,8 @@ void Chart::init() {
     btn5min->setFixedWidth(80);
     btnStopPlot->setFixedWidth(80);
     btnSaveExcel->setFixedWidth(80);
+    btnSaveChart->setFixedWidth(80);
+    btnSaveAll->setFixedWidth(80);
 
     btn1min->setEnabled(true);
     btn2min->setEnabled(true);
@@ -209,8 +226,10 @@ void Chart::init() {
         }
         });
 
-    // 连接保存Excel按钮
+    // 连接按钮信号
     connect(btnSaveExcel, &QPushButton::clicked, this, &Chart::saveDataToExcel);
+    connect(btnSaveChart, &QPushButton::clicked, this, &Chart::saveChartToImage);
+    connect(btnSaveAll, &QPushButton::clicked, this, &Chart::saveDataAndChart);
 
     buttonLayout->addWidget(timeRangeLabel);
     buttonLayout->addSpacing(10);
@@ -223,6 +242,10 @@ void Chart::init() {
     buttonLayout->addWidget(btnStopPlot); // 添加停止绘制按钮
     buttonLayout->addSpacing(10);
     buttonLayout->addWidget(btnSaveExcel); // 添加保存Excel按钮
+    buttonLayout->addSpacing(5);
+    buttonLayout->addWidget(btnSaveChart); // 新增
+    buttonLayout->addSpacing(5);
+    buttonLayout->addWidget(btnSaveAll);   // 新增
 
     // 创建右侧布局（包含按钮和饼图）
     QVBoxLayout* rightLayout = new QVBoxLayout();
@@ -246,7 +269,6 @@ void Chart::init() {
     dataPoints.clear();
     localDataPoints.clear(); // 初始化本地数据点存储
     comparisonData.clear(); // 初始化对比数据存储
-
 }
 
 // 保存数据到Excel/CSV文件
@@ -261,15 +283,281 @@ void Chart::saveDataToExcel() {
         return; // 用户取消了文件选择
     }
 
-    QFile file(filePath);
-    if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
-        QMessageBox::critical(this, "错误", QString("无法创建文件: %1").arg(filePath));
+    if (saveDataToFile(filePath)) {
+        // 显示保存成功消息
+        int totalRecords = comparisonData.size();
+        int validComparisons = 0;
+        int matchingRecords = 0;
+
+        for (const DataRecord& record : comparisonData) {
+            if (record.hasActualValue) {
+                validComparisons++;
+                bool isMatch = qAbs(record.predictedValue - record.actualValue) <= 5.0;
+                if (isMatch) matchingRecords++;
+            }
+        }
+
+        QString message = QString("数据已成功导出到:\n%1\n\n统计信息:\n总记录数: %2\n有效对比数: %3")
+            .arg(filePath)
+            .arg(totalRecords)
+            .arg(validComparisons);
+
+        if (validComparisons > 0) {
+            double accuracy = (double)matchingRecords / validComparisons * 100.0;
+            message += QString("\n准确率: %1%").arg(QString::number(accuracy, 'f', 2));
+        }
+
+        QMessageBox::information(this, "导出成功", message);
+    }
+    else {
+        QMessageBox::critical(this, "导出失败", QString("无法保存文件到:\n%1").arg(filePath));
+    }
+}
+
+// 新增：保存图表为图像文件
+void Chart::saveChartToImage() {
+    if (dataPoints.isEmpty() && localDataPoints.isEmpty()) {
+        QMessageBox::information(this, "提示", "暂无图表数据可导出");
         return;
     }
 
+    QString filePath = getChartImageFilePath();
+    if (filePath.isEmpty()) {
+        return; // 用户取消了文件选择
+    }
+
+    // 创建一个包含完整图表的渲染场景
+    QPixmap chartPixmap = createChartImage();
+
+    if (chartPixmap.save(filePath)) {
+        QMessageBox::information(this, "导出成功",
+            QString("图表已成功导出到:\n%1").arg(filePath));
+    }
+    else {
+        QMessageBox::critical(this, "导出失败",
+            QString("无法保存图表到:\n%1").arg(filePath));
+    }
+}
+
+// 新增：同时导出数据和图表
+void Chart::saveDataAndChart() {
+    if (comparisonData.isEmpty()) {
+        QMessageBox::information(this, "提示", "暂无数据可导出");
+        return;
+    }
+
+    // 获取保存目录
+    QString documentsPath = QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
+    QDir dir(documentsPath);
+    if (!dir.exists("CognitiveStateData")) {
+        dir.mkpath("CognitiveStateData");
+    }
+
+    QString saveDir = QFileDialog::getExistingDirectory(
+        this,
+        "选择导出目录",
+        dir.absoluteFilePath("CognitiveStateData")
+    );
+
+    if (saveDir.isEmpty()) {
+        return;
+    }
+
+    QString timestamp = QDateTime::currentDateTime().toString("yyyyMMdd_hhmmss");
+
+    // 保存Excel文件
+    QString excelPath = QDir(saveDir).absoluteFilePath(
+        QString("认知状态数据_%1.csv").arg(timestamp));
+
+    // 保存图表文件
+    QString chartPath = QDir(saveDir).absoluteFilePath(
+        QString("认知状态图表_%1.png").arg(timestamp));
+
+    bool excelSuccess = saveDataToFile(excelPath);
+    bool chartSuccess = false;
+
+    if (excelSuccess) {
+        QPixmap chartPixmap = createChartImage();
+        chartSuccess = chartPixmap.save(chartPath);
+    }
+
+    // 显示结果
+    QString message;
+    if (excelSuccess && chartSuccess) {
+        message = QString("数据和图表已成功导出到:\n数据文件: %1\n图表文件: %2")
+            .arg(excelPath).arg(chartPath);
+        QMessageBox::information(this, "导出成功", message);
+    }
+    else {
+        message = "导出过程中发生错误:\n";
+        if (!excelSuccess) message += "- 数据文件保存失败\n";
+        if (!chartSuccess) message += "- 图表文件保存失败\n";
+        QMessageBox::critical(this, "导出失败", message);
+    }
+}
+
+// 获取Excel文件保存路径
+QString Chart::getExcelFilePath() {
+    // 获取文档目录
+    QString documentsPath = QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
+
+    // 创建一个专门的目录
+    QDir dir(documentsPath);
+    if (!dir.exists("CognitiveStateData")) {
+        dir.mkpath("CognitiveStateData");
+    }
+
+    // 生成带时间戳的默认文件名
+    QString defaultFileName = QString("认知状态对比数据_%1.csv")
+        .arg(QDateTime::currentDateTime().toString("yyyyMMdd_hhmmss"));
+
+    QString defaultPath = dir.absoluteFilePath("CognitiveStateData/" + defaultFileName);
+
+    // 弹出文件保存对话框
+    QString filePath = QFileDialog::getSaveFileName(
+        this,
+        "保存认知状态对比数据",
+        defaultPath,
+        "CSV文件 (*.csv);;Excel文件 (*.xlsx);;所有文件 (*.*)"
+    );
+
+    return filePath;
+}
+
+// 新增：获取图表图像保存路径
+QString Chart::getChartImageFilePath() {
+    QString documentsPath = QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
+
+    QDir dir(documentsPath);
+    if (!dir.exists("CognitiveStateData")) {
+        dir.mkpath("CognitiveStateData");
+    }
+
+    QString defaultFileName = QString("认知状态图表_%1.png")
+        .arg(QDateTime::currentDateTime().toString("yyyyMMdd_hhmmss"));
+
+    QString defaultPath = dir.absoluteFilePath("CognitiveStateData/" + defaultFileName);
+
+    QString filePath = QFileDialog::getSaveFileName(
+        this,
+        "保存认知状态图表",
+        defaultPath,
+        "PNG图像 (*.png);;JPEG图像 (*.jpg);;SVG矢量图 (*.svg);;所有文件 (*.*)"
+    );
+
+    return filePath;
+}
+
+// 新增：创建图表图像
+QPixmap Chart::createChartImage() {
+    // 创建一个足够大的画布来容纳整个图表
+    QSize chartSize(1200, 800);
+    QPixmap pixmap(chartSize);
+    pixmap.fill(Qt::white);
+
+    QPainter painter(&pixmap);
+    painter.setRenderHint(QPainter::Antialiasing);
+
+    // 绘制主图表
+    QRect chartRect(50, 50, 800, 500);
+    chartView->render(&painter, chartRect);
+
+    // 绘制饼图
+    QRect pieRect(900, 50, 250, 250);
+    pieChartView->render(&painter, pieRect);
+
+    // 添加标题和说明
+    painter.setFont(QFont("Microsoft YaHei", 16, QFont::Bold));
+    painter.setPen(Qt::black);
+    painter.drawText(50, 30, "认知状态监测对比图表");
+
+    // 添加图例说明
+    painter.setFont(QFont("Microsoft YaHei", 12));
+    int legendY = 600;
+
+    // 实时数据图例
+    painter.setPen(QPen(Qt::blue, 3));
+    painter.drawLine(50, legendY, 80, legendY);
+    painter.setPen(Qt::black);
+    painter.drawText(90, legendY + 5, "实时数据 (蓝色实线)");
+
+    // 本地标签图例
+    QPen dashedPen(Qt::red, 3, Qt::DashLine);
+    painter.setPen(dashedPen);
+    painter.drawLine(250, legendY, 280, legendY);
+    painter.setPen(Qt::black);
+    painter.drawText(290, legendY + 5, "本地标签 (红色虚线)");
+
+    // 添加时间戳
+    painter.setFont(QFont("Microsoft YaHei", 10));
+    painter.setPen(Qt::gray);
+    QString timestamp = QString("导出时间: %1")
+        .arg(QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss"));
+    painter.drawText(50, chartSize.height() - 20, timestamp);
+
+    // 添加统计信息
+    QString statsText = generateStatsText();
+    if (!statsText.isEmpty()) {
+        painter.setPen(Qt::black);
+        painter.setFont(QFont("Microsoft YaHei", 11));
+
+        QStringList lines = statsText.split('\n');
+        int statsY = 320;
+        for (const QString& line : lines) {
+            painter.drawText(900, statsY, line);
+            statsY += 20;
+        }
+    }
+
+    return pixmap;
+}
+
+// 新增：生成统计信息文本
+QString Chart::generateStatsText() {
+    if (comparisonData.isEmpty()) {
+        return "暂无统计数据";
+    }
+
+    int totalRecords = 0;
+    int matchingRecords = 0;
+    double totalError = 0.0;
+    int validComparisons = 0;
+
+    for (const DataRecord& record : comparisonData) {
+        totalRecords++;
+        if (record.hasActualValue) {
+            bool isMatch = qAbs(record.predictedValue - record.actualValue) <= 5.0;
+            if (isMatch) matchingRecords++;
+            totalError += qAbs(record.predictedValue - record.actualValue);
+            validComparisons++;
+        }
+    }
+
+    QString stats = QString("=== 数据统计 ===\n总记录数: %1\n有效对比数: %2")
+        .arg(totalRecords).arg(validComparisons);
+
+    if (validComparisons > 0) {
+        double accuracy = (double)matchingRecords / validComparisons * 100.0;
+        double avgError = totalError / validComparisons;
+        stats += QString("\n匹配记录数: %1\n准确率: %2%\n平均误差: %3")
+            .arg(matchingRecords)
+            .arg(QString::number(accuracy, 'f', 2))
+            .arg(QString::number(avgError, 'f', 2));
+    }
+
+    return stats;
+}
+
+// 新增：将数据保存到指定文件的辅助方法
+bool Chart::saveDataToFile(const QString& filePath) {
+    QFile file(filePath);
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        return false;
+    }
+
     QTextStream stream(&file);
-    stream.setCodec("UTF-8"); // 设置编码为UTF-8
-    stream.setGenerateByteOrderMark(true); // 添加BOM以确保Excel正确识别UTF-8
+    stream.setCodec("UTF-8");
+    stream.setGenerateByteOrderMark(true);
 
     // 写入标题行
     stream << QString::fromUtf8("时间戳,预测值,预测标签,真实值,真实标签,是否匹配,差值\n");
@@ -291,12 +579,8 @@ void Chart::saveDataToExcel() {
         if (record.hasActualValue) {
             line += QString::number(record.actualValue, 'f', 1) + ",";
             line += record.actualLabel + ",";
-
-            // 判断是否匹配（考虑容差）
             bool isMatch = qAbs(record.predictedValue - record.actualValue) <= 5.0;
             line += QString(isMatch ? "匹配" : "不匹配") + ",";
-
-            // 计算差值
             double diff = record.predictedValue - record.actualValue;
             line += QString::number(diff, 'f', 1);
 
@@ -326,47 +610,7 @@ void Chart::saveDataToExcel() {
     }
 
     file.close();
-
-    // 显示保存成功消息
-    QString message = QString("数据已成功导出到:\n%1\n\n统计信息:\n总记录数: %2\n有效对比数: %3")
-        .arg(filePath)
-        .arg(totalRecords)
-        .arg(validComparisons);
-
-    if (validComparisons > 0) {
-        double accuracy = (double)matchingRecords / validComparisons * 100.0;
-        message += QString("\n准确率: %1%").arg(QString::number(accuracy, 'f', 2));
-    }
-
-    QMessageBox::information(this, "导出成功", message);
-}
-
-// 获取Excel文件保存路径
-QString Chart::getExcelFilePath() {
-    // 获取文档目录
-    QString documentsPath = QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
-
-    // 创建一个专门的目录
-    QDir dir(documentsPath);
-    if (!dir.exists("CognitiveStateData")) {
-        dir.mkpath("CognitiveStateData");
-    }
-
-    // 生成带时间戳的默认文件名
-    QString defaultFileName = QString("认知状态对比数据_%1.csv")
-        .arg(QDateTime::currentDateTime().toString("yyyyMMdd_hhmmss"));
-
-    QString defaultPath = dir.absoluteFilePath("CognitiveStateData/" + defaultFileName);
-
-    // 弹出文件保存对话框
-    QString filePath = QFileDialog::getSaveFileName(
-        this,
-        "保存认知状态对比数据",
-        defaultPath,
-        "CSV文件 (*.csv);;Excel文件 (*.xlsx);;所有文件 (*.*)"
-    );
-
-    return filePath;
+    return true;
 }
 
 // 将数值转换为标签描述
@@ -431,6 +675,7 @@ void Chart::updateChartFromData() {
     // 更新饼图
     updatePieChart();
 }
+
 // 设置时间范围
 void Chart::setTimeRange(TimeRange range) {
     currentTimeRange = range;
@@ -586,8 +831,6 @@ void Chart::updatePieChart() {
 }
 
 void Chart::receiveDatas() {
-
-
     if (!isPlottingEnabled) {
         // 存储数据但不更新图表
         QDateTime currentTime = QDateTime::currentDateTime();
@@ -626,7 +869,6 @@ void Chart::receiveDatas() {
 
         return;
     }
-
 
     // 获取当前时间
     QDateTime currentTime = QDateTime::currentDateTime();
@@ -760,10 +1002,11 @@ void Chart::connectdata(quint8 data, uint8_t localdata) {
         flag = false;
     }
     result = data;
-
-
     localresult = localdata;
-
-    //qDebug()<<"本地数据标签:"<<localresult;
     receiveDatas();
+}
+
+// 空实现保持接口兼容性
+void Chart::updatePercentageLabels() {
+    // 此方法已通过updatePieChart()实现，保留空实现用于兼容性
 }

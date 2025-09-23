@@ -113,7 +113,7 @@ private:
     quint16 tcpServerPort;        // TCP服务器端口
     bool tcpForwardingEnabled;    // TCP转发是否启用
     QByteArray tcpReceiveBuffer;  // 接收缓冲区
-
+    quint64 tcpSentSampleCount;
     void initTimer();
     void init();
     void setConnect();

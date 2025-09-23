@@ -876,6 +876,7 @@ def new_load_model_weights_predict(model_path,source_loader,target_loader):
         if (test_accuracy) > min_acc:
             min_acc = test_accuracy
             best_preds = all_original_preds
+        print("测试准确率:" + str(test_accuracy))
     best_best_preds.extend(best_preds)
     return best_best_preds
 

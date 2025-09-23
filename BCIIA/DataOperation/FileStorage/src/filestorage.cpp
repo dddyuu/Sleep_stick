@@ -446,7 +446,7 @@ void FileStorage::init()
     this->totalSampleCount = 0;
     this->currentSampleRate = 500; // 默认采样率500Hz
     this->currentEventType = 0;    // 初始化当前事件类型
-
+    this->tcpSentSampleCount = 0; // 初始化TCP发送采样点数统计
     // 初始化缓存相关变量
     this->cachingActive = false;
     this->cacheStartSampleCount = 0;
@@ -645,6 +645,7 @@ void FileStorage::sendDataToTcp(const QList<QList<double>>& data)
 
     // 写入数据维度信息
     quint32 channelCount = data.size();
+	//qDebug() << "Channel count:" << channelCount;
     quint32 sampleCount = data.isEmpty() ? 0 : data[0].size();
     stream << channelCount;
     stream << sampleCount;
@@ -661,7 +662,11 @@ void FileStorage::sendDataToTcp(const QList<QList<double>>& data)
     tcpSocket->flush();
 
     bool success = (bytesWritten == packet.size());
-
+    // 更新TCP发送采样点数统计
+    if (success && sampleCount > 0) {
+        tcpSentSampleCount += sampleCount;
+        //qDebug() << "TCP sent samples:" << tcpSentSampleCount << "(" << sampleCount << "new)";
+    }
 
  /*   qDebug() << "TCP data sent:" << bytesWritten << "bytes, success:" << success;
     qDebug() << "Event type:" << currentEventType << "Filename:" << currentFilename;
