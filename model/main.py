@@ -83,12 +83,13 @@ class EEGDataReceiver:
 
         self.send_batches = 0
         self.total_received_samples = 0
-
+        self.filename = ""
         # Event tracking: 分为三个阶段
         self.event_51_count = 0
 
         # Model path and training flags
-        self.current_model_path = os.path.join(PATH_CONFIG["model"], "zlh_1.pth")
+        # self.current_model_path = os.path.join(PATH_CONFIG["model"], f"{self.filename}_1.pth")
+        self.current_model_path = None
         self.first_training_completed = False
         # Online classification buffers and parameters (fixed 2 channels)
         self.realtime_buffer = [[], []]  # 2 channels
@@ -358,8 +359,9 @@ class EEGDataReceiver:
 
                         # Online loaders and inference (from data_trainer2)
                         test_label = np.full((self.num_windows,), current_label, dtype=np.int64)
-                        train_npy_data_path = os.path.join(PATH_CONFIG["data"], "zlh_1.npy")
-                        train_npy_label = os.path.join(PATH_CONFIG["label"], "zlh_1.npy")
+                        train_npy_data_path = os.path.join(PATH_CONFIG["data"], f"{self.filename}_1.npy")
+
+                        train_npy_label = os.path.join(PATH_CONFIG["label"], f"{self.filename}_1.npy")
 
                         train_loader, test_loader = Pget_data_online_loaders(
                             train_npy_data_path, train_npy_label, online_data, test_label
@@ -473,8 +475,8 @@ class EEGDataReceiver:
                     # Step 3: 训练模型
                     try:
                         logging.info(f"[线程{thread_id}] 步骤3: 训练模型")
-                        train_npy_data_path = os.path.join(PATH_CONFIG["data"], "zlh_0.npy")
-                        train_npy_label = os.path.join(PATH_CONFIG["label"], "zlh_0.npy")
+                        train_npy_data_path = os.path.join(PATH_CONFIG["data"], f"{self.filename}_0.npy")
+                        train_npy_label = os.path.join(PATH_CONFIG["label"], f"{self.filename}_0.npy")
                         # train_npy_mat = os.path.join(PATH_CONFIG["base"], "aaa_0_process.mat")
                         train_loader, test_loader = Pget_data_loaders(
                             train_npy_data_path, train_npy_label, output_npy_data, output_npy_label
@@ -542,6 +544,9 @@ class EEGDataReceiver:
             elif ptype == "event":
                 event_type = packet_data["event_type"]
                 filename = packet_data.get("filename", "")
+                base_filename = os.path.basename(filename)
+                filename_without_ext = os.path.splitext(base_filename)[0]
+                self.filename = filename_without_ext
                 logging.info(f"接收到事件通知: 类型={event_type}, 文件={filename or 'N/A'}")
 
                 if event_type == 51:
