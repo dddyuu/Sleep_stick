@@ -246,11 +246,12 @@ def save_to_train_npy(file_path,output_data_path,output_label_path,scaler):
     np.save(output_data_path, data_result)
     np.save(output_label_path, label_result)
     return scaler
-def save_to_test_npy(file_path,output_data_path,output_label_path,scaler):
+def save_to_test_npy(file_path,output_data_path,output_label_path):
 
     data1 = loadmat(file_path)["data"].transpose(1,0)
     event_data1 = loadmat(file_path)["events"]["positions"]
     # data1 = scaler.transform(data1)
+    scaler = preprocessing.StandardScaler()
     scaler.fit(data1)
     data1 = scaler.transform(data1)
     low_data = data1[event_data1[0][0][0][0]:event_data1[0][0][0][1]]
