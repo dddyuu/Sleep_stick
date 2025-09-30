@@ -86,9 +86,9 @@ class EEGDataReceiver:
         self.filename = ""
         # Event tracking: 分为三个阶段
         self.event_51_count = 0
-
+        self.event_54_count = 0
         # Model path and training flags
-        # self.current_model_path = os.path.join(PATH_CONFIG["model"], f"{self.filename}_1.pth")
+        # self.current_model_path = os.path.join(PATH_CONFIG["model"], "yj_1.pth")
         self.current_model_path = None
         self.first_training_completed = False
         # Online classification buffers and parameters (fixed 2 channels)
@@ -561,6 +561,8 @@ class EEGDataReceiver:
 
                 elif event_type == 54:
                     self.receiving_data = False
+                    self.event_54_count += 1
+
                     logging.info(f"*** 事件54 (第{self.event_51_count}轮): 停止数据接收，开始后台处理 ***")
                     self.save_archive_to_excel(filename)
                     self.process_event_54(filename)

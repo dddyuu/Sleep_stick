@@ -12,7 +12,7 @@ from preprocess import save_to_train_npy
 EMBED_DIM = 64
 DROPOUT = 0.5
 BATCH_SIZE = 128
-NUM_EPOCHS = 1000
+NUM_EPOCHS = 100
 LEARNING_RATE = 0.005
 WEIGHT_DECAY = 1e-2
 
