@@ -191,38 +191,47 @@ def enhanced_data_receiver():
 # *** Processing Python integer: 0  ***
 # Python sent classification result: Class 0
 # DataOperation received Python classification result: 0
+# python
 def send_label_list_to_cpp(client_socket, label_value):
-    """发送标签列表到C++（新格式）"""
+    """一次发送五个整数到C++（4字节长度=5 + 5字节标签）"""
     try:
+        # 统一为列表
         if isinstance(label_value, (list, tuple, np.ndarray)):
-            # 确保标签值为整数列表
             label_list = [int(x) for x in label_value]
-
-            # 打包格式：先发送列表长度，然后发送每个元素
-            # 使用大端序格式
-            length_packet = struct.pack('>i', len(label_list))
-            data_packet = struct.pack('>' + 'B' * len(label_list), *label_list)
-
-            # 组合数据包
-            full_packet = length_packet + data_packet
-
-            bytes_sent = client_socket.send(full_packet)
-            print(f"★ 发送分类结果到C++: {label_list} ({bytes_sent} 字节)")
-            return bytes_sent == len(full_packet)
         else:
-            # 单个值转换为列表格式
-            label_list = [int(label_value)]
-            length_packet = struct.pack('>i', len(label_list))
-            data_packet = struct.pack('>' + 'B' * len(label_list), *label_list)
+            # 标量：复制成5个
+            label_list = [int(label_value)] * 5
+
+        # 将列表按5个为一组发送；最后一组不足5个则用最后一个值填充
+        def chunks_of_five(src):
+            i = 0
+            n = len(src)
+            while i < n:
+                chunk = src[i:i+5]
+                if len(chunk) < 5:
+                    pad_val = chunk[-1] if chunk else 0
+                    chunk = chunk + [pad_val] * (5 - len(chunk))
+                yield chunk
+                i += 5
+
+        all_ok = True
+        for group in chunks_of_five(label_list):
+            # 长度固定为5
+            length_packet = struct.pack('>i', 5)
+            data_packet = struct.pack('>5B', *group)
             full_packet = length_packet + data_packet
 
             bytes_sent = client_socket.send(full_packet)
-            print(f"★ 发送分类结果到C++: {label_list} ({bytes_sent} 字节)")
-            return bytes_sent == len(full_packet)
+            print(f"★ 发送分类结果到C++: {group} ({bytes_sent} 字节)")
+            if bytes_sent != len(full_packet):
+                all_ok = False
+
+        return all_ok
 
     except Exception as e:
         print(f"发送标签失败: {e}")
         return False
+
 
 
 def simple_data_receiver_with_sender():

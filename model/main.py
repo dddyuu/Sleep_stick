@@ -1,3 +1,5 @@
+# python
+# 文件: 'main.py'
 import os
 import struct
 import socket
@@ -23,6 +25,12 @@ try:
     MODULES_AVAILABLE = True
 except Exception as e:
     MODULES_AVAILABLE = False
+
+# 可选 UI（若未提供 ui.py，不影响运行）
+try:
+    from ui import StatusUI  # noqa: F401
+except Exception:
+    StatusUI = None  # type: ignore
 
 # Logging
 logging.basicConfig(
@@ -67,9 +75,10 @@ def decode_filename(bytes_data: bytes) -> str:
 
 
 class EEGDataReceiver:
-    def __init__(self, host: str = "127.0.0.1", port: int = 8888):
+    def __init__(self, host: str = "127.0.0.1", port: int = 8888, ui: Any = None):
         self.host = host
         self.port = port
+        self.ui = ui  # 可选 UI
 
         self.socket: Optional[socket.socket] = None
         self.client_socket: Optional[socket.socket] = None
@@ -88,19 +97,42 @@ class EEGDataReceiver:
         self.event_51_count = 0
         self.event_54_count = 0
         # Model path and training flags
-        # self.current_model_path = os.path.join(PATH_CONFIG["model"], "yj_1.pth")
         self.current_model_path = None
         self.first_training_completed = False
-        # Online classification buffers and parameters (fixed 2 channels)
+
+        # 实时分类缓冲固定2通道；归档缓冲按实际通道数动态管理
         self.realtime_buffer = [[], []]  # 2 channels
-        self.archive_buffer = [[], []]
+        self.archive_buffer: List[List[float]] = []  # 动态通道数
+        self.current_channel_count = 0
+
+        # 在线窗口参数（2通道，5×500窗口，250重叠）
         self.window_len = 500
         self.overlap = 250
         self.num_windows = 5
         self.target_samples = self.window_len + self.overlap * (self.num_windows - 1)  # 1500
         self.stride = self.target_samples - self.overlap  # 1250
         self.prc_call_count = 0
+
         ensure_directories(PATH_CONFIG)
+
+    # ---------------------------
+    # UI 助手（线程安全）
+    # ---------------------------
+    def _ui(self, method: str, *args, **kwargs):
+        if not self.ui:
+            return
+        fn = getattr(self.ui, method, None)
+        if not fn:
+            return
+        # 其他线程投递 UI 更新
+        post = getattr(self.ui, "post", None)
+        if callable(post):
+            self.ui.post(fn, *args, **kwargs)
+        else:
+            try:
+                fn(*args, **kwargs)
+            except Exception:
+                pass
 
     # ---------------------------
     # Socket sending helpers
@@ -125,7 +157,7 @@ class EEGDataReceiver:
 
             if isinstance(labels_input, (list, tuple, np.ndarray)):
                 arr = np.array(labels_input).reshape(-1)
-                labels = [int(x) for x in arr[-5:]]  # send last 5
+                labels = [int(x) for x in arr[-5:]]  # 发送最近5个
             else:
                 labels = [int(labels_input)]
 
@@ -139,28 +171,30 @@ class EEGDataReceiver:
             return False
 
     def save_archive_to_excel(self, filename: str = "") -> None:
-        """将整段会话的全部采样点导出为Excel。"""
+        """将整段会话按实际通道数导出为Excel。"""
         try:
-            max_len = max(len(self.archive_buffer[0]), len(self.archive_buffer[1]))
-            if max_len == 0:
+            if not self.archive_buffer or max((len(ch) for ch in self.archive_buffer), default=0) == 0:
                 logging.info("无采样点可保存，跳过导出Excel")
                 return
 
-            # 对齐两通道长度（短通道用NaN补齐）
-            ch0 = self.archive_buffer[0] + [np.nan] * (max_len - len(self.archive_buffer[0]))
-            ch1 = self.archive_buffer[1] + [np.nan] * (max_len - len(self.archive_buffer[1]))
+            # 对齐为相同长度
+            max_len = max(len(ch) for ch in self.archive_buffer)
+            cols: Dict[str, List[float]] = {}
+            for idx, ch in enumerate(self.archive_buffer):
+                padded = ch + [np.nan] * (max_len - len(ch))
+                cols[f"ch{idx}"] = padded
 
             base_filename = os.path.basename(filename) if filename else "session"
             filename_without_ext = os.path.splitext(base_filename)[0] if base_filename else "session"
             ts = time.strftime("%Y%m%d_%H%M%S")
             out_path = os.path.join(PATH_CONFIG["data"], f"{filename_without_ext}_{ts}_all_samples.xlsx")
 
-            df = pd.DataFrame({"ch0": ch0, "ch1": ch1})
+            df = pd.DataFrame(cols)
             df.to_excel(out_path, index=False)
             logging.info(f"✓ 已导出全量采样到Excel: {out_path}")
 
-            # 导出后清空
-            self.archive_buffer = [[], []]
+            # 导出后清空（保持通道数信息）
+            self.archive_buffer = [[] for _ in range(self.current_channel_count)]
         except Exception as e:
             logging.error(f"导出Excel失败: {e}", exc_info=True)
 
@@ -192,13 +226,11 @@ class EEGDataReceiver:
             if filename_length > 1024 or len(buffer) < offset + filename_length:
                 return None
 
-            # 特别注意：QString在QDataStream中默认使用UTF-16编码
+            # QString 默认 UTF-16BE
             filename_bytes = buffer[offset:offset + filename_length]
             try:
-                # 尝试UTF-16解码（QString的默认编码）
                 filename = filename_bytes.decode('utf-16be')
             except UnicodeDecodeError:
-                # 如果失败，尝试其他编码
                 filename = decode_filename(filename_bytes)
             offset += filename_length
 
@@ -209,7 +241,6 @@ class EEGDataReceiver:
             sample_count = struct.unpack(">I", buffer[offset + 4:offset + 8])[0]
             offset += 8
 
-            # 验证数据维度
             if channel_count <= 0 or sample_count <= 0:
                 return None
             if channel_count > 100 or sample_count > 100000:
@@ -221,7 +252,6 @@ class EEGDataReceiver:
             if len(buffer) < offset + data_size:
                 return None
 
-            # 解析double数据
             num_doubles = channel_count * sample_count
             try:
                 doubles = struct.unpack(f">{num_doubles}d", buffer[offset:offset + data_size])
@@ -230,23 +260,20 @@ class EEGDataReceiver:
                 return None
             offset += data_size
 
-            # 重组为通道数据
-            eeg_data = []
-            for ch in range(2):
-                eeg_data.append([doubles[i] for i in range(ch, len(doubles), 2)])
-
-            # 确保有2个通道
-            while len(eeg_data) < 2:
-                eeg_data.append(eeg_data[0].copy() if eeg_data else [0.0] * sample_count)
-            eeg_data = eeg_data[:2]
+            # 重组为通道数据（按通道连续块：ch0[0:N], ch1[0:N], ...）
+            eeg_data: List[List[float]] = []
+            for ch in range(channel_count):
+                start = ch * sample_count
+                end = start + sample_count
+                eeg_data.append(list(doubles[start:end]))
 
             return {
                 "type": "data",
                 "identifier": identifier,
                 "event_type": event_type,
                 "filename": filename,
-                "channel_count": 2,
-                "sample_count": len(eeg_data[0]),
+                "channel_count": channel_count,
+                "sample_count": sample_count,
                 "eeg_data": eeg_data,
                 "total_size": offset,
             }
@@ -298,12 +325,11 @@ class EEGDataReceiver:
             return None
 
     # ---------------------------
-    # Core handling - 修改后的处理逻辑
+    # Core handling
     # ---------------------------
     def process_realtime_classification(self, eeg_data: List[List[float]], event_type: int) -> None:
-        """只在第2轮及以上进行实时分类"""
+        """只在第2轮及以上进行实时分类；推理时强制2通道。"""
         try:
-            # 只在第2轮及以上进行实时分类
             if self.event_51_count < 3:
                 return
             if not self.first_training_completed or not self.current_model_path:
@@ -318,16 +344,16 @@ class EEGDataReceiver:
             if current_label == -1:
                 return
 
-            # Ensure 2 channels
+            # 确保2通道（仅用于在线推理缓冲，不影响归档）
             if len(eeg_data) == 1:
                 eeg_data = [eeg_data[0], eeg_data[0].copy()]
-            eeg_data = eeg_data[:2]
+            elif len(eeg_data) > 2:
+                eeg_data = eeg_data[:2]
 
-            # 记录接收到的数据
             samples_in_batch = len(eeg_data[0]) if eeg_data and eeg_data[0] else 0
             self.total_received_samples += samples_in_batch
 
-            # 追加数据到缓冲区
+            # 追加数据到2通道实时缓冲区
             for ch in range(2):
                 self.realtime_buffer[ch].extend(eeg_data[ch])
 
@@ -335,7 +361,7 @@ class EEGDataReceiver:
                 return
 
             try:
-                # Trigger classification when enough samples (with overlap windows)
+                # 触发分类（窗口+重叠）
                 while min(len(self.realtime_buffer[0]), len(self.realtime_buffer[1])) >= self.target_samples:
                     data_for_classification = np.zeros((self.num_windows, 2, self.window_len), dtype=np.float64)
                     for w in range(self.num_windows):
@@ -351,7 +377,7 @@ class EEGDataReceiver:
                             )
 
                     try:
-                        # Standardize online batch
+                        # 标准化在线批
                         scaler = preprocessing.StandardScaler()
                         flat = data_for_classification.reshape(-1, 2 * self.window_len)
                         scaler.fit(flat)
@@ -360,7 +386,6 @@ class EEGDataReceiver:
                         # Online loaders and inference (from data_trainer2)
                         test_label = np.full((self.num_windows,), current_label, dtype=np.int64)
                         train_npy_data_path = os.path.join(PATH_CONFIG["data"], f"{self.filename}_1.npy")
-
                         train_npy_label = os.path.join(PATH_CONFIG["label"], f"{self.filename}_1.npy")
 
                         train_loader, test_loader = Pget_data_online_loaders(
@@ -379,7 +404,7 @@ class EEGDataReceiver:
                     except Exception as e:
                         logging.error(f"实时分类处理失败: {e}", exc_info=True)
 
-                    # Slide buffer: keep overlap, drop stride
+                    # 滑动缓冲：丢弃 stride，保留 overlap
                     for ch in range(2):
                         del self.realtime_buffer[ch][:self.stride]
             finally:
@@ -392,7 +417,6 @@ class EEGDataReceiver:
 
         def safe_background_process():
             thread_id = threading.current_thread().ident
-
 
             try:
                 if not filename:
@@ -411,6 +435,7 @@ class EEGDataReceiver:
 
                 if not MODULES_AVAILABLE:
                     logging.error(f"[线程{thread_id}] 处理模块不可用，跳过文件处理")
+                    self._ui("stop_training", False)
                     return
 
                 # Wait for input file if needed
@@ -423,9 +448,10 @@ class EEGDataReceiver:
                             break
                     else:
                         logging.error(f"[线程{thread_id}] 等待超时，文件仍不存在: {input_mat_file}")
+                        self._ui("stop_training", False)
                         return
 
-                # 第0轮：只进行预处理
+                # 第0轮：只进行预处理 + 转npy
                 if self.event_51_count == 1:
                     logging.info(f"[线程{thread_id}] 第0轮: 只进行预处理")
                     try:
@@ -434,50 +460,42 @@ class EEGDataReceiver:
                     except Exception as e:
                         logging.error(f"[线程{thread_id}] 第0轮预处理失败: {e}")
                         return
-                        # Step 2: 转换为numpy格式
                     try:
-
                         save_to_test_npy(output_mat_file, output_npy_data, output_npy_label)
                         logging.info(f"[线程{thread_id}] 步骤2完成: numpy转换")
                     except Exception as e:
                         logging.error(f"[线程{thread_id}] 步骤2失败 - numpy转换错误: {e}")
                         return
 
-                # 第1轮：进行训练
+                # 第1轮：预处理+转npy+训练
                 elif self.event_51_count == 2:
                     logging.info(f"[线程{thread_id}] 第1轮: 开始训练流程")
-
-                    # Step 1: 预处理EEG
                     try:
                         preprocess_eeg(input_mat_file, output_mat_file, downsample_freq=250)
                         logging.info(f"[线程{thread_id}] 步骤1完成: EEG预处理")
                     except Exception as e:
                         logging.error(f"[线程{thread_id}] 步骤1失败 - EEG预处理错误: {e}")
+                        self._ui("stop_training", False)
                         return
 
                     if not os.path.exists(output_mat_file):
                         logging.error(f"[线程{thread_id}] 预处理输出文件不存在: {output_mat_file}")
+                        self._ui("stop_training", False)
                         return
 
-                    # Step 2: 转换为numpy格式
                     try:
                         logging.info(f"[线程{thread_id}] 步骤2: 转换为numpy格式")
-
-
-                        # Fit scaler on train set and save both train and test npy
-                        # scaler = save_to_train_npy(train_npy_mat, train_npy_data_path, train_npy_label, scaler)
                         save_to_test_npy(output_mat_file, output_npy_data, output_npy_label)
                         logging.info(f"[线程{thread_id}] 步骤2完成: numpy转换")
                     except Exception as e:
                         logging.error(f"[线程{thread_id}] 步骤2失败 - numpy转换错误: {e}")
+                        self._ui("stop_training", False)
                         return
 
-                    # Step 3: 训练模型
                     try:
                         logging.info(f"[线程{thread_id}] 步骤3: 训练模型")
                         train_npy_data_path = os.path.join(PATH_CONFIG["data"], f"{self.filename}_0.npy")
                         train_npy_label = os.path.join(PATH_CONFIG["label"], f"{self.filename}_0.npy")
-                        # train_npy_mat = os.path.join(PATH_CONFIG["base"], "aaa_0_process.mat")
                         train_loader, test_loader = Pget_data_loaders(
                             train_npy_data_path, train_npy_label, output_npy_data, output_npy_label
                         )
@@ -487,11 +505,13 @@ class EEGDataReceiver:
                         self.current_model_path = output_model_file
                         self.first_training_completed = True
                         logging.info(f"[线程{thread_id}] ★ 第1轮训练完成，模型可用: {self.current_model_path}")
+                        self._ui("stop_training", True)
                     except Exception as e:
                         logging.error(f"[线程{thread_id}] 步骤3失败 - 模型训练错误: {e}")
+                        self._ui("stop_training", False)
                         return
 
-                # 第2轮及以上：进行测试（实时分类已在数据包处理中实现）
+                # 第2轮及以上：仅用于实时分类，54跳过
                 elif self.event_51_count > 2:
                     logging.info(f"[线程{thread_id}] 第{self.event_51_count}轮: 测试模式，跳过事件54处理")
 
@@ -525,18 +545,23 @@ class EEGDataReceiver:
 
                 eeg_data = packet_data.get("eeg_data", [])
                 event_type = packet_data.get("event_type", 0)
+                channel_count = packet_data.get("channel_count", 0)
                 if event_type == 0:
                     logging.warning("接收到无效的事件类型: 0，跳过处理")
                     return
-                if eeg_data:
-                    # 确保2通道
-                    if len(eeg_data) == 1:
-                        eeg_data = [eeg_data[0], eeg_data[0].copy()]
-                    eeg_data = eeg_data[:2]
-                    for ch in range(2):
+
+                # 初始化或校准归档缓冲的通道数
+                if channel_count > 0:
+                    if self.current_channel_count != channel_count or not self.archive_buffer:
+                        self.current_channel_count = channel_count
+                        self.archive_buffer = [[] for _ in range(channel_count)]
+
+                # 仅按实际通道归档，不复制
+                if eeg_data and self.archive_buffer:
+                    for ch in range(min(len(self.archive_buffer), len(eeg_data))):
                         self.archive_buffer[ch].extend(eeg_data[ch])
 
-                # 只在第2轮及以上进行实时分类
+                # 只在第2轮及以上进行实时分类（分类时内部会确保2通道）
                 if eeg_data and self.event_51_count > 2:
                     self.prc_call_count += 1
                     self.process_realtime_classification(eeg_data, event_type)
@@ -554,6 +579,17 @@ class EEGDataReceiver:
                     self.receiving_data = True
                     logging.info(f"*** 事件51 (第{self.event_51_count}轮): 开始数据接收 ***")
 
+                    # UI 阶段指示
+                    if self.event_51_count == 1:
+                        self._ui("set_phase", "阶段0（预处理）")
+                        self._ui("set_realtime", False)
+                    elif self.event_51_count == 2:
+                        self._ui("set_phase", "阶段1（训练）")
+                        self._ui("set_realtime", False)
+                    else:
+                        self._ui("set_phase", "阶段3（实时分类）")
+                        self._ui("set_realtime", True)
+
                     # 第2轮及以上时重置实时分类缓冲区
                     if self.event_51_count > 2:
                         self.realtime_buffer = [[], []]
@@ -564,6 +600,9 @@ class EEGDataReceiver:
                     self.event_54_count += 1
 
                     logging.info(f"*** 事件54 (第{self.event_51_count}轮): 停止数据接收，开始后台处理 ***")
+                    # 若为训练轮（第2次收到51），触发UI进度条
+                    if self.event_51_count == 2:
+                        self._ui("start_training")
                     self.save_archive_to_excel(filename)
                     self.process_event_54(filename)
 
@@ -644,11 +683,13 @@ class EEGDataReceiver:
             self.socket.listen(5)
             self.socket.settimeout(1.0)
             logging.info(f"TCP服务器启动成功，监听地址: {self.host}:{self.port}")
+            self._ui("set_tcp", f"已启动，等待连接 {self.host}:{self.port}")
 
             while self.running:
                 try:
                     client_socket, address = self.socket.accept()
                     logging.info(f"客户端连接: {address}")
+                    self._ui("set_tcp", f"已连接 {address[0]}:{address[1]}")
 
                     t = threading.Thread(target=self.handle_client, args=(client_socket,), daemon=True)
                     t.name = f"Client-{address[0]}:{address[1]}"
@@ -662,6 +703,7 @@ class EEGDataReceiver:
                     logging.error(f"服务器运行异常: {e}")
         except Exception as e:
             logging.error(f"服务器启动失败: {e}")
+            self._ui("set_tcp", "启动失败")
         finally:
             self.stop_server()
 
@@ -684,6 +726,7 @@ class EEGDataReceiver:
                     pass
 
         logging.info("TCP服务器已停止")
+        self._ui("set_tcp", "已停止")
 
 
 def main():
